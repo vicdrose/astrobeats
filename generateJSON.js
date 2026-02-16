@@ -1,42 +1,34 @@
 const fs = require('fs');
 const path = require('path');
 
-// Base paths
-const astrologyPath = path.join(__dirname, 'astrology');
-const crystalsPath = path.join(__dirname, 'crystals');
-
-function getFiles(folder) {
-  return fs.readdirSync(folder).filter(file => file.endsWith('.jpg'));
+function getFilesWithPath(dir) {
+  // Only .jpg files, return full relative path
+  return fs.readdirSync(dir)
+    .filter(f => f.toLowerCase().endsWith('.jpg'))
+    .map(f => path.join(dir, f).replace(/\\/g, '/')); // ensure forward slashes
 }
 
-// --- Astrology JSON ---
-const astrologyJSON = {
-  back: 'astrology/back.jpg',
-  body: getFiles(path.join(astrologyPath, 'body')).map(f => f.replace('.jpg','')),
-  houses: getFiles(path.join(astrologyPath, 'houses')).map(f => f.replace('.jpg','')),
-  signs: getFiles(path.join(astrologyPath, 'sign')).map(f => f.replace('.jpg',''))
+const data = {
+  astrology: {
+    body: getFilesWithPath('astrology/body'),
+    houses: getFilesWithPath('astrology/houses'),
+    signs: getFilesWithPath('astrology/sign')
+  },
+  crystals: []
 };
 
-// --- Crystals JSON ---
-const crystalFront = getFiles(path.join(crystalsPath, 'front'));
-const crystalText = getFiles(path.join(crystalsPath, 'text'));
+// Crystals
+const crystalFronts = getFilesWithPath('crystals/front');
+const crystalTexts = getFilesWithPath('crystals/text');
 
-const crystalsJSON = crystalFront.map(frontFile => {
-  const name = frontFile.replace('-front.jpg','');
-  const textFile = crystalText.find(f => f.includes(name));
-  return {
-    name,
-    front: `crystals/front/${frontFile}`,
-    text: `crystals/text/${textFile}`
-  };
-});
+for (let i = 0; i < crystalFronts.length; i++) {
+  data.crystals.push({
+    name: path.basename(crystalFronts[i], '-front.jpg'),
+    front: crystalFronts[i],
+    text: crystalTexts[i]
+  });
+}
 
-// --- Full JSON ---
-const fullJSON = {
-  astrology: astrologyJSON,
-  crystals: crystalsJSON
-};
-
-// Write to data.json
-fs.writeFileSync('data.json', JSON.stringify(fullJSON, null, 2));
-console.log('✅ data.json generated successfully!');
+// Write JSON
+fs.writeFileSync('data.json', JSON.stringify(data, null, 2));
+console.log('data.json regenerated with correct paths!');
