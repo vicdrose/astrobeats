@@ -1,56 +1,55 @@
 {
   "astrology": {
-    "back": "astrology/back.jpg",
     "body": [
-      "ceres",
-      "chiron",
-      "juno",
-      "jupiter",
-      "mars",
-      "mercury",
-      "moon",
-      "neptune",
-      "north-node",
-      "pallas",
-      "pluto",
-      "saturn",
-      "south-node",
-      "sun",
-      "uranus",
-      "venus",
-      "vesta"
+      "astrology/body/ceres.jpg",
+      "astrology/body/chiron.jpg",
+      "astrology/body/juno.jpg",
+      "astrology/body/jupiter.jpg",
+      "astrology/body/mars.jpg",
+      "astrology/body/mercury.jpg",
+      "astrology/body/moon.jpg",
+      "astrology/body/neptune.jpg",
+      "astrology/body/north-node.jpg",
+      "astrology/body/pallas.jpg",
+      "astrology/body/pluto.jpg",
+      "astrology/body/saturn.jpg",
+      "astrology/body/south-node.jpg",
+      "astrology/body/sun.jpg",
+      "astrology/body/uranus.jpg",
+      "astrology/body/venus.jpg",
+      "astrology/body/vesta.jpg"
     ],
     "houses": [
-      "01-first",
-      "02-second",
-      "03-third",
-      "04-fourth",
-      "05-fifth",
-      "06-sixth",
-      "07-seventh",
-      "08-eighth",
-      "09-ninth",
-      "10-tenth",
-      "11-eleventh",
-      "12-twelfth",
-      "ascendent",
-      "descendent",
-      "imum-coeli",
-      "midheaven"
+      "astrology/houses/01-first.jpg",
+      "astrology/houses/02-second.jpg",
+      "astrology/houses/03-third.jpg",
+      "astrology/houses/04-fourth.jpg",
+      "astrology/houses/05-fifth.jpg",
+      "astrology/houses/06-sixth.jpg",
+      "astrology/houses/07-seventh.jpg",
+      "astrology/houses/08-eighth.jpg",
+      "astrology/houses/09-ninth.jpg",
+      "astrology/houses/10-tenth.jpg",
+      "astrology/houses/11-eleventh.jpg",
+      "astrology/houses/12-twelfth.jpg",
+      "astrology/houses/ascendent.jpg",
+      "astrology/houses/descendent.jpg",
+      "astrology/houses/imum-coeli.jpg",
+      "astrology/houses/midheaven.jpg"
     ],
     "signs": [
-      "01-aries",
-      "02-taurus",
-      "03-gemini",
-      "04-cancer",
-      "05-leo",
-      "06-virgo",
-      "07-libra",
-      "08-scorpio",
-      "09-sagittarius",
-      "10-capricorn",
-      "11-aquarius",
-      "12-pisces"
+      "astrology/sign/01-aries.jpg",
+      "astrology/sign/02-taurus.jpg",
+      "astrology/sign/03-gemini.jpg",
+      "astrology/sign/04-cancer.jpg",
+      "astrology/sign/05-leo.jpg",
+      "astrology/sign/06-virgo.jpg",
+      "astrology/sign/07-libra.jpg",
+      "astrology/sign/08-scorpio.jpg",
+      "astrology/sign/09-sagittarius.jpg",
+      "astrology/sign/10-capricorn.jpg",
+      "astrology/sign/11-aquarius.jpg",
+      "astrology/sign/12-pisces.jpg"
     ]
   },
   "crystals": [
@@ -317,7 +316,7 @@
     {
       "name": "scocelite",
       "front": "crystals/front/scocelite-front.jpg",
-      "text": "crystals/text/undefined"
+      "text": "crystals/text/scolecite-text.jpg"
     },
     {
       "name": "selenite",
@@ -357,7 +356,7 @@
     {
       "name": "tektite",
       "front": "crystals/front/tektite-front.jpg",
-      "text": "crystals/text/libyan-gold-tektite-text.jpg"
+      "text": "crystals/text/tektite-text.jpg"
     },
     {
       "name": "tibetan-black-quartz",
