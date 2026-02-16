@@ -142,23 +142,30 @@ function shuffleCards() {
   const houseCard = getRandomItem(data.astrology.houses);
   const crystalCard = getRandomItem(data.crystals);
 
-  // Astrology cards 1-3: back = astrology/back.jpg, front = actual card
-  document.querySelector('#card1 .card-front').src = bodyCard;
-  document.querySelector('#card1 .card-back').src = 'astrology/back.jpg';
+  // --- Astrology Cards (1–3) ---
+  // Default visible side = back.jpg
+  // Hidden side = real card image
 
-  document.querySelector('#card2 .card-front').src = signCard;
-  document.querySelector('#card2 .card-back').src = 'astrology/back.jpg';
+  document.querySelector('#card1 .card-front').src = 'astrology/back.jpg';
+  document.querySelector('#card1 .card-back').src = bodyCard;
 
-  document.querySelector('#card3 .card-front').src = houseCard;
-  document.querySelector('#card3 .card-back').src = 'astrology/back.jpg';
+  document.querySelector('#card2 .card-front').src = 'astrology/back.jpg';
+  document.querySelector('#card2 .card-back').src = signCard;
 
-  // Crystal card 4: back = what was called "front", front = text
-  document.querySelector('#card4 .card-back').src = crystalCard.front; // visible first
-  document.querySelector('#card4 .card-front').src = crystalCard.text;  // flips to this
+  document.querySelector('#card3 .card-front').src = 'astrology/back.jpg';
+  document.querySelector('#card3 .card-back').src = houseCard;
 
-  // Reset flip state
+  // --- Crystal Card (4) ---
+  // Default visible = crystal front (not -text)
+  // Hidden side = crystal text image
+
+  document.querySelector('#card4 .card-front').src = crystalCard.front;
+  document.querySelector('#card4 .card-back').src = crystalCard.text;
+
+  // Reset all cards to default state (not flipped)
   cards.forEach(card => card.classList.remove('flip'));
 }
+
 
 // Card flip click
 function setupCardClicks() {
