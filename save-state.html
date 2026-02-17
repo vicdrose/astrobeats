@@ -76,6 +76,7 @@
 
   #journal button {
     padding: 5px 10px;
+    margin-right: 5px;
   }
 
   #journal-entries {
@@ -87,6 +88,12 @@
     padding: 5px;
     border-radius: 5px;
   }
+
+  #journal-entries button {
+    font-size: 0.8rem;
+    padding: 2px 5px;
+    margin-left: 5px;
+  }
 </style>
 </head>
 <body>
@@ -94,10 +101,10 @@
 <h1>AstroBeats Cards</h1>
 
 <div id="cards-container">
-  <div id="card1" class="card"><div class="card-inner"><img class="card-front" src="" alt=""><img class="card-back" src="astrology/back.jpg" alt=""></div></div>
-  <div id="card2" class="card"><div class="card-inner"><img class="card-front" src="" alt=""><img class="card-back" src="astrology/back.jpg" alt=""></div></div>
-  <div id="card3" class="card"><div class="card-inner"><img class="card-front" src="" alt=""><img class="card-back" src="astrology/back.jpg" alt=""></div></div>
-  <div id="card4" class="card"><div class="card-inner"><img class="card-front" src="" alt=""><img class="card-back" src="astrology/back.jpg" alt=""></div></div>
+  <div id="card4" class="card"><div class="card-inner"><img class="card-front" src="" alt=""><img class="card-back" src="" alt=""></div></div>
+  <div id="card3" class="card"><div class="card-inner"><img class="card-front" src="" alt=""><img class="card-back" src="" alt=""></div></div>
+  <div id="card2" class="card"><div class="card-inner"><img class="card-front" src="" alt=""><img class="card-back" src="" alt=""></div></div>
+  <div id="card1" class="card"><div class="card-inner"><img class="card-front" src="" alt=""><img class="card-back" src="" alt=""></div></div>
 </div>
 
 <button id="shuffle-btn">Shuffle Cards</button>
@@ -106,6 +113,7 @@
   <h2>Journal</h2>
   <textarea id="journal-input" placeholder="Write your journal entry..."></textarea><br>
   <button id="journal-save">Save Entry</button>
+  <button id="journal-clear">Clear All</button>
   <div id="journal-entries"></div>
 </div>
 
@@ -117,7 +125,7 @@ function getRandomItem(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-// Fetch data.json and then initialize cards
+// --- Load JSON & Initialize ---
 fetch('data.json')
   .then(res => res.json())
   .then(jsonData => {
@@ -134,6 +142,7 @@ fetch('data.json')
   })
   .catch(err => console.error('Failed to load data.json', err));
 
+// --- Shuffle Cards ---
 function shuffleCards() {
   if (!data.astrology || !data.crystals) return;
 
@@ -142,17 +151,25 @@ function shuffleCards() {
   const houseCard = getRandomItem(data.astrology.houses);
   const crystalCard = getRandomItem(data.crystals);
 
-  // Assign images to card fronts
-  document.querySelector('#card1 .card-front').src = bodyCard;
-  document.querySelector('#card2 .card-front').src = signCard;
-  document.querySelector('#card3 .card-front').src = houseCard;
+  // Astrology cards default to back.jpg
+  document.querySelector('#card1 .card-front').src = 'astrology/back.jpg';
+  document.querySelector('#card1 .card-back').src = bodyCard;
+
+  document.querySelector('#card2 .card-front').src = 'astrology/back.jpg';
+  document.querySelector('#card2 .card-back').src = signCard;
+
+  document.querySelector('#card3 .card-front').src = 'astrology/back.jpg';
+  document.querySelector('#card3 .card-back').src = houseCard;
+
+  // Crystal card default to front
   document.querySelector('#card4 .card-front').src = crystalCard.front;
+  document.querySelector('#card4 .card-back').src = crystalCard.text;
 
   // Reset flip state
   cards.forEach(card => card.classList.remove('flip'));
 }
 
-// Card flip click
+// --- Card Flip ---
 function setupCardClicks() {
   cards.forEach(card => {
     card.addEventListener('click', () => {
@@ -161,30 +178,69 @@ function setupCardClicks() {
   });
 }
 
-// Shuffle button
 document.querySelector('#shuffle-btn').addEventListener('click', shuffleCards);
 
-// Journal
+// --- Journal CRUD ---
 function loadJournal() {
   const entries = JSON.parse(localStorage.getItem('journalEntries') || '[]');
   const container = document.querySelector('#journal-entries');
   container.innerHTML = '';
-  entries.forEach(e => {
+
+  entries.forEach((entry, index) => {
     const p = document.createElement('p');
-    p.textContent = e;
+    p.textContent = entry;
+    
+    const editBtn = document.createElement('button');
+    editBtn.textContent = 'Edit';
+    editBtn.addEventListener('click', () => editEntry(index));
+
+    const delBtn = document.createElement('button');
+    delBtn.textContent = 'Delete';
+    delBtn.addEventListener('click', () => deleteEntry(index));
+
+    p.appendChild(editBtn);
+    p.appendChild(delBtn);
     container.appendChild(p);
   });
 }
 
-document.querySelector('#journal-save').addEventListener('click', () => {
+function saveEntry() {
   const input = document.querySelector('#journal-input');
-  const entries = JSON.parse(localStorage.getItem('journalEntries') || '[]');
   if (input.value.trim() === '') return;
+
+  const entries = JSON.parse(localStorage.getItem('journalEntries') || '[]');
   entries.push(input.value);
   localStorage.setItem('journalEntries', JSON.stringify(entries));
   input.value = '';
   loadJournal();
+}
+
+function editEntry(index) {
+  const entries = JSON.parse(localStorage.getItem('journalEntries') || '[]');
+  const newVal = prompt('Edit your entry:', entries[index]);
+  if (newVal !== null && newVal.trim() !== '') {
+    entries[index] = newVal;
+    localStorage.setItem('journalEntries', JSON.stringify(entries));
+    loadJournal();
+  }
+}
+
+function deleteEntry(index) {
+  const entries = JSON.parse(localStorage.getItem('journalEntries') || '[]');
+  entries.splice(index, 1);
+  localStorage.setItem('journalEntries', JSON.stringify(entries));
+  loadJournal();
+}
+
+// Clear all with confirmation
+document.querySelector('#journal-clear').addEventListener('click', () => {
+  if (confirm('Are you sure you want to clear all journal entries? This cannot be undone.')) {
+    localStorage.removeItem('journalEntries');
+    loadJournal();
+  }
 });
+
+document.querySelector('#journal-save').addEventListener('click', saveEntry);
 </script>
 
 </body>
