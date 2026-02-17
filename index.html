@@ -31,6 +31,11 @@
     cursor: pointer;
   }
 
+  /* Taller crystal card */
+  #card4 {
+    height: 260px;
+  }
+
   .card-inner {
     position: relative;
     width: 100%;
@@ -145,7 +150,6 @@ function shuffleCards() {
   // --- Astrology Cards (1–3) ---
   // Default visible side = back.jpg
   // Hidden side = real card image
-
   document.querySelector('#card1 .card-front').src = 'astrology/back.jpg';
   document.querySelector('#card1 .card-back').src = bodyCard;
 
@@ -158,14 +162,12 @@ function shuffleCards() {
   // --- Crystal Card (4) ---
   // Default visible = crystal front (not -text)
   // Hidden side = crystal text image
-
   document.querySelector('#card4 .card-front').src = crystalCard.front;
   document.querySelector('#card4 .card-back').src = crystalCard.text;
 
   // Reset all cards to default state (not flipped)
   cards.forEach(card => card.classList.remove('flip'));
 }
-
 
 // Card flip click
 function setupCardClicks() {
@@ -179,7 +181,7 @@ function setupCardClicks() {
 // Shuffle button
 document.querySelector('#shuffle-btn').addEventListener('click', shuffleCards);
 
-// Journal
+// Journal CRUD
 function loadJournal() {
   const entries = JSON.parse(localStorage.getItem('journalEntries') || '[]');
   const container = document.querySelector('#journal-entries');
