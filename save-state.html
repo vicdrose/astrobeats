@@ -22,17 +22,26 @@
     z-index: -1;
   }
 
-  /* App container on top of the shader */
+  /* Black overlay above shader but below app */
+  #shader-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: black;
+    opacity: 0.7; /* adjust darkness */
+    z-index: 0;
+    pointer-events: none; /* clicks pass through */
+  }
+
+  /* App container on top of everything */
   #app {
     position: relative;
     z-index: 1;
-    color: #fff; /* Black text */
+    color: #000; /* Black text */
     background: rgba(255,255,255,0); /* transparent */
     padding: 20px;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.7); /* subtle black shadow */
-    border: 2px white solid;
-    margin: 10px;
-    border-radius: 10px;
   }
 
   h1, h2 {
@@ -124,6 +133,7 @@
 <body>
 
 <canvas id="c"></canvas>
+<div id="shader-overlay"></div>
 
 <div id="app">
   <h1>AstroBeats Cards</h1>
