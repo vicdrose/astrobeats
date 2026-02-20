@@ -9,14 +9,17 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
 <style>
-body {
+/* ===== Full Screen Setup ===== */
+html, body {
   margin: 0;
   padding: 0;
-  overflow-x: hidden;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
   font-family: Arial, sans-serif;
 }
 
-/* Shader canvas */
+/* Shader canvas behind everything */
 canvas#c {
   position: fixed;
   top: 0;
@@ -26,7 +29,7 @@ canvas#c {
   z-index: -2;
 }
 
-/* Dark layer above shader */
+/* Dark shader overlay */
 #shader-overlay {
   position: fixed;
   top: 0;
@@ -39,7 +42,7 @@ canvas#c {
   pointer-events: none;
 }
 
-/* UI Overlay */
+/* UI overlay when modal/sidebar open */
 #ui-overlay {
   position: fixed;
   top: 0;
@@ -52,7 +55,51 @@ canvas#c {
   z-index: 5;
 }
 
-/* Hamburger */
+/* ===== App Wrapper ===== */
+.app-wrapper {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  transition: transform 0.3s ease;
+}
+
+.app-wrapper.shifted {
+  transform: translateX(300px);
+}
+
+/* ===== Sidebar ===== */
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 300px;
+  height: 100vh;
+  background: rgba(0,0,0,0.85); /* barely darker than parent */
+  backdrop-filter: blur(8px);
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar.open {
+  transform: translateX(0);
+}
+
+.sidebar-item {
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.2);
+  color: white;
+  background: transparent;
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Hamburger Button */
 #hamburger {
   position: fixed;
   top: 20px;
@@ -60,37 +107,10 @@ canvas#c {
   font-size: 24px;
   color: white;
   cursor: pointer;
-  z-index: 10;
+  z-index: 1010;
 }
 
-/* Sidebar */
-#sidebar {
-  position: fixed;
-  top: 0;
-  right: -250px;
-  width: 250px;
-  height: 100%;
-  background: rgba(0,0,0,0.95);
-  padding: 30px 20px;
-  transition: right 0.3s ease;
-  z-index: 10;
-}
-
-#sidebar.active { right: 0; }
-
-#sidebar button {
-  display: block;
-  width: 100%;
-  margin-bottom: 15px;
-  padding: 10px;
-  background: transparent;
-  border: 1px solid white;
-  color: white;
-  cursor: pointer;
-  text-align: left;
-}
-
-/* App */
+/* ===== Main App ===== */
 #app {
   position: relative;
   z-index: 1;
@@ -98,8 +118,12 @@ canvas#c {
   padding: 20px;
   text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
   border: 2px white solid;
-  margin: 10px;
   border-radius: 10px;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
+  background: rgba(0,0,0,0); /* transparent */
 }
 
 h1, h2 {
@@ -152,7 +176,7 @@ h1, h2 {
   cursor: pointer;
 }
 
-/* Journal Modal */
+/* ===== Journal Modal ===== */
 #journalModal {
   position: fixed;
   top: 50%;
@@ -160,13 +184,18 @@ h1, h2 {
   transform: translate(-50%, -50%);
   width: 90%;
   max-width: 600px;
-  background: rgba(255,255,255,0.1);
+  background: rgba(0,0,0,0.9);
   backdrop-filter: blur(8px);
   border: 1px solid white;
   padding: 20px;
   border-radius: 12px;
   display: none;
   z-index: 20;
+  color: #fff;
+}
+
+#journalModal * {
+  color: #fff;
 }
 
 .modal-close {
@@ -181,6 +210,11 @@ h1, h2 {
   width: 100%;
   height: 100px;
   margin-bottom: 10px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #fff;
+  padding: 5px;
+  border-radius: 5px;
 }
 
 #journal-entries p {
@@ -205,68 +239,72 @@ h1, h2 {
 
 <div id="hamburger"><i class="fas fa-bars"></i></div>
 
-<div id="sidebar">
-  <button id="openJournal">
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-item" id="openJournal">
     <i class="fas fa-book-open"></i> Journal
-  </button>
+  </div>
 </div>
 
-<div id="app">
-<h1>AstroBeats Cards</h1>
+<div class="app-wrapper">
+  <div id="app">
+    <h1>AstroBeats Cards</h1>
 
-<div id="cards-container">
-  <div id="card4" class="card"><div class="card-inner"><img class="card-front"><img class="card-back"></div></div>
-  <div id="card3" class="card"><div class="card-inner"><img class="card-front"><img class="card-back"></div></div>
-  <div id="card2" class="card"><div class="card-inner"><img class="card-front"><img class="card-back"></div></div>
-  <div id="card1" class="card"><div class="card-inner"><img class="card-front"><img class="card-back"></div></div>
-</div>
+    <div id="cards-container">
+      <div id="card4" class="card"><div class="card-inner"><img class="card-front"><img class="card-back"></div></div>
+      <div id="card3" class="card"><div class="card-inner"><img class="card-front"><img class="card-back"></div></div>
+      <div id="card2" class="card"><div class="card-inner"><img class="card-front"><img class="card-back"></div></div>
+      <div id="card1" class="card"><div class="card-inner"><img class="card-front"><img class="card-back"></div></div>
+    </div>
 
-<button id="shuffle-btn">Shuffle Cards</button>
+    <button id="shuffle-btn">Shuffle Cards</button>
+  </div>
 </div>
 
 <!-- Journal Modal -->
 <div id="journalModal">
-<span class="modal-close">&times;</span>
-<h2>Journal</h2>
-<textarea id="journal-input" placeholder="Write your journal entry..."></textarea><br>
-<button id="journal-save">Save Entry</button>
-<button id="journal-clear">Clear All</button>
-<button id="closeJournalBottom">Close</button>
-<div id="journal-entries"></div>
+  <span class="modal-close">&times;</span>
+  <h2>Journal</h2>
+  <textarea id="journal-input" placeholder="Write your journal entry..."></textarea><br>
+  <button id="journal-save">Save Entry</button>
+  <button id="journal-clear">Clear All</button>
+  <button id="closeJournalBottom">Close</button>
+  <div id="journal-entries"></div>
 </div>
 
 <script>
-
 /* ===== UI SYSTEM ===== */
 const hamburger = document.getElementById("hamburger");
 const sidebar = document.getElementById("sidebar");
 const uiOverlay = document.getElementById("ui-overlay");
 const journalModal = document.getElementById("journalModal");
+const appWrapper = document.querySelector(".app-wrapper");
 
 function closeAll(){
-  sidebar.classList.remove("active");
+  sidebar.classList.remove("open");
   journalModal.style.display = "none";
   uiOverlay.style.display = "none";
+  appWrapper.classList.remove("shifted");
 }
 
 hamburger.addEventListener("click", () => {
-  sidebar.classList.toggle("active");
+  sidebar.classList.toggle("open");
+  appWrapper.classList.toggle("shifted");
   uiOverlay.style.display = "block";
 });
 
 uiOverlay.addEventListener("click", closeAll);
 
 document.getElementById("openJournal").addEventListener("click", () => {
-  sidebar.classList.remove("active");
+  sidebar.classList.remove("open");
   journalModal.style.display = "block";
   uiOverlay.style.display = "block";
+  appWrapper.classList.remove("shifted");
 });
 
 document.querySelector(".modal-close").addEventListener("click", closeAll);
 document.getElementById("closeJournalBottom").addEventListener("click", closeAll);
 
 /* ===== ORIGINAL CARDS + JOURNAL CODE ===== */
-
 let data = {};
 let cards = [];
 
@@ -320,7 +358,6 @@ function setupCardClicks() {
 document.querySelector('#shuffle-btn').addEventListener('click', shuffleCards);
 
 /* Journal Logic */
-
 function loadJournal() {
   const entries = JSON.parse(localStorage.getItem('journalEntries') || '[]');
   const container = document.querySelector('#journal-entries');
@@ -379,7 +416,6 @@ document.querySelector('#journal-clear').addEventListener('click',()=>{
 document.querySelector('#journal-save').addEventListener('click',saveEntry);
 
 /* ===== Shader (UNCHANGED) ===== */
-
 const canvas = document.getElementById('c');
 canvas.width = window.innerWidth; 
 canvas.height = window.innerHeight;
@@ -388,7 +424,6 @@ const gl = canvas.getContext('webgl');
 if(!gl){ alert("WebGL not supported"); }
 
 const vsSource = `attribute vec4 aPosition; void main(){ gl_Position = aPosition; }`;
-
 const fsSource = `
 precision mediump float;
 uniform float u_time;
@@ -396,8 +431,7 @@ uniform vec2 u_resolution;
 vec3 waveBlend(vec3 c1, vec3 c2,float freq,vec2 uv,float time){ return mix(c1,c2,0.5+0.5*sin(uv.x*freq+uv.y*freq+time)); }
 void main(){
   vec2 uv = gl_FragCoord.xy/u_resolution.xy; uv = uv*2.0-1.0;
-  uv.x+=0.05*sin(u_time+uv.y*4.0); 
-  uv.y+=0.05*cos(u_time*0.7+uv.x*4.0);
+  uv.x+=0.05*sin(u_time+uv.y*4.0); uv.y+=0.05*cos(u_time*0.7+uv.x*4.0);
   vec3 larimar = vec3(0.42,0.77,0.87);
   vec3 softPurple = vec3(0.6,0.4,0.9);
   vec3 paleCyan = vec3(0.6,0.9,0.95);
@@ -458,6 +492,5 @@ window.addEventListener('resize',()=>{
   gl.uniform2f(u_resolution,canvas.width,canvas.height);
 });
 </script>
-
 </body>
 </html>
