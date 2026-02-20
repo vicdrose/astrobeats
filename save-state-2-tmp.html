@@ -37,13 +37,12 @@ canvas#c {
   pointer-events: none;
 }
 
-/* UI overlay */
+/* UI overlay for sidebar or modal */
 #ui-overlay {
   position: fixed;
   top: 0; left: 0;
   width: 100%; height: 100%;
-  background: rgba(0,0,0,0.8);
-  backdrop-filter: blur(4px);
+  background: rgba(0,0,0,0.5);
   display: none;
   z-index: 5;
 }
@@ -57,18 +56,18 @@ canvas#c {
 }
 
 .app-wrapper.shifted {
-  transform: translateX(-300px); /* slide left when sidebar comes in from right */
+  transform: translateX(-300px);
 }
 
 /* Sidebar on right */
 .sidebar {
   position: fixed;
-  top: 0; right: 0; /* sidebar on right */
+  top: 0; right: 0;
   width: 300px;
   height: 100vh;
   background: rgba(0,0,0,0.85);
   backdrop-filter: blur(8px);
-  transform: translateX(100%); /* hide off-screen to the right */
+  transform: translateX(100%);
   transition: transform 0.3s ease;
   z-index: 1000;
   display: flex;
@@ -260,7 +259,7 @@ h1, h2 {
 </div>
 
 <script>
-/* ===== UI SYSTEM ===== */
+// ===== Sidebar + Modal UI =====
 const hamburger = document.getElementById("hamburger");
 const sidebar = document.getElementById("sidebar");
 const uiOverlay = document.getElementById("ui-overlay");
@@ -292,8 +291,155 @@ document.getElementById("openJournal").addEventListener("click", () => {
 document.querySelector(".modal-close").addEventListener("click", closeAll);
 document.getElementById("closeJournalBottom").addEventListener("click", closeAll);
 
-/* ===== ORIGINAL CARDS + JOURNAL LOGIC ===== */
-// ... keep all your card and journal JS unchanged ...
+// ===== Original Card + Journal Logic =====
+let data = {};
+let cards = [];
+
+function getRandomItem(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+fetch('data.json')
+  .then(res => res.json())
+  .then(jsonData => {
+    data = jsonData;
+    cards = [
+      document.querySelector('#card1'),
+      document.querySelector('#card2'),
+      document.querySelector('#card3'),
+      document.querySelector('#card4')
+    ];
+    shuffleCards();
+    setupCardClicks();
+    loadJournal();
+  })
+  .catch(err => console.error('Failed to load data.json', err));
+
+function shuffleCards() {
+  if (!data.astrology || !data.crystals) return;
+
+  const bodyCard = getRandomItem(data.astrology.body);
+  const signCard = getRandomItem(data.astrology.signs);
+  const houseCard = getRandomItem(data.astrology.houses);
+  const crystalCard = getRandomItem(data.crystals);
+
+  document.querySelector('#card1 .card-front').src = 'astrology/back.jpg';
+  document.querySelector('#card1 .card-back').src = bodyCard;
+
+  document.querySelector('#card2 .card-front').src = 'astrology/back.jpg';
+  document.querySelector('#card2 .card-back').src = signCard;
+
+  document.querySelector('#card3 .card-front').src = 'astrology/back.jpg';
+  document.querySelector('#card3 .card-back').src = houseCard;
+
+  document.querySelector('#card4 .card-front').src = crystalCard.front;
+  document.querySelector('#card4 .card-back').src = crystalCard.text;
+
+  cards.forEach(card => card.classList.remove('flip'));
+}
+
+function setupCardClicks() {
+  cards.forEach(card => {
+    card.addEventListener('click', () => { card.classList.toggle('flip'); });
+  });
+}
+
+document.querySelector('#shuffle-btn').addEventListener('click', shuffleCards);
+
+function loadJournal() {
+  const entries = JSON.parse(localStorage.getItem('journalEntries') || '[]');
+  const container = document.querySelector('#journal-entries');
+  container.innerHTML = '';
+  entries.forEach((entry,index) => {
+    const p = document.createElement('p'); p.textContent = entry;
+    const editBtn = document.createElement('button'); editBtn.textContent='Edit';
+    editBtn.addEventListener('click',()=>editEntry(index));
+    const delBtn = document.createElement('button'); delBtn.textContent='Delete';
+    delBtn.addEventListener('click',()=>deleteEntry(index));
+    p.appendChild(editBtn); p.appendChild(delBtn);
+    container.appendChild(p);
+  });
+}
+
+function saveEntry() {
+  const input = document.querySelector('#journal-input'); if(input.value.trim()==='') return;
+  const entries = JSON.parse(localStorage.getItem('journalEntries') || '[]'); entries.push(input.value);
+  localStorage.setItem('journalEntries', JSON.stringify(entries)); input.value='';
+  loadJournal();
+}
+
+function editEntry(index){
+  const entries = JSON.parse(localStorage.getItem('journalEntries')||'[]');
+  const newVal = prompt('Edit your entry:',entries[index]);
+  if(newVal!==null && newVal.trim()!==''){ entries[index]=newVal;
+    localStorage.setItem('journalEntries',JSON.stringify(entries)); loadJournal();
+  }
+}
+
+function deleteEntry(index){
+  const entries = JSON.parse(localStorage.getItem('journalEntries')||'[]'); entries.splice(index,1);
+  localStorage.setItem('journalEntries',JSON.stringify(entries)); loadJournal();
+}
+
+document.querySelector('#journal-clear').addEventListener('click',()=>{
+  if(confirm('Clear all journal entries?')) { localStorage.removeItem('journalEntries'); loadJournal(); }
+});
+document.querySelector('#journal-save').addEventListener('click',saveEntry);
+
+/* ===== WebGL Shader ===== */
+const canvas = document.getElementById('c');
+canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+const gl = canvas.getContext('webgl'); if(!gl){ alert("WebGL not supported"); }
+
+const vsSource = `attribute vec4 aPosition; void main(){ gl_Position = aPosition; }`;
+const fsSource = `
+precision mediump float;
+uniform float u_time;
+uniform vec2 u_resolution;
+vec3 waveBlend(vec3 c1, vec3 c2,float freq,vec2 uv,float time){ return mix(c1,c2,0.5+0.5*sin(uv.x*freq+uv.y*freq+time)); }
+void main(){
+  vec2 uv = gl_FragCoord.xy/u_resolution.xy; uv = uv*2.0-1.0;
+  uv.x+=0.05*sin(u_time+uv.y*4.0); uv.y+=0.05*cos(u_time*0.7+uv.x*4.0);
+  vec3 larimar = vec3(0.42,0.77,0.87);
+  vec3 softPurple = vec3(0.6,0.4,0.9);
+  vec3 paleCyan = vec3(0.6,0.9,0.95);
+  vec3 lightPink = vec3(0.9,0.7,0.85);
+  vec3 softWhite = vec3(0.95,0.95,1.0);
+  vec3 col = waveBlend(larimar,paleCyan,8.0,uv,u_time);
+  col = waveBlend(col,softPurple,12.0,uv*1.5,u_time*0.8);
+  col = waveBlend(col,lightPink,6.0,uv*2.0,u_time*1.2);
+  col = waveBlend(col,softWhite,4.0,uv*3.0,u_time*0.5);
+  col*=0.7+0.3*uv.y;
+  gl_FragColor = vec4(col,1.0);
+}
+`;
+
+function compileShader(type,source){ const shader=gl.createShader(type); gl.shaderSource(shader,source); gl.compileShader(shader);
+  if(!gl.getShaderParameter(shader,gl.COMPILE_STATUS)){ console.error(gl.getShaderInfoLog(shader)); } return shader; }
+
+const vertexShader = compileShader(gl.VERTEX_SHADER,vsSource);
+const fragmentShader = compileShader(gl.FRAGMENT_SHADER,fsSource);
+
+const program = gl.createProgram();
+gl.attachShader(program,vertexShader); gl.attachShader(program,fragmentShader);
+gl.linkProgram(program); gl.useProgram(program);
+
+const vertices = new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]);
+const buffer = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,buffer); gl.bufferData(gl.ARRAY_BUFFER,vertices,gl.STATIC_DRAW);
+
+const aPosition = gl.getAttribLocation(program,'aPosition'); gl.enableVertexAttribArray(aPosition); gl.vertexAttribPointer(aPosition,2,gl.FLOAT,false,0,0);
+
+const u_time = gl.getUniformLocation(program,'u_time');
+const u_resolution = gl.getUniformLocation(program,'u_resolution');
+gl.uniform2f(u_resolution,canvas.width,canvas.height);
+
+function render(time){ gl.uniform1f(u_time,time*0.001); gl.drawArrays(gl.TRIANGLES,0,6); requestAnimationFrame(render); }
+requestAnimationFrame(render);
+
+window.addEventListener('resize',()=>{
+  canvas.width=window.innerWidth; canvas.height=window.innerHeight;
+  gl.viewport(0,0,canvas.width,canvas.height);
+  gl.uniform2f(u_resolution,canvas.width,canvas.height);
+});
 </script>
+
 </body>
 </html>
