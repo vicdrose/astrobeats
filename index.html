@@ -129,6 +129,23 @@
     box-shadow: 0 0 14px rgba(122,76,216,0.5);
   }
 
+  #ask-btn .sparkle,
+  #ask-modal .sparkle,
+  #journal-ask .sparkle {
+    font-size: 11px;
+    margin-left: -2px;
+    margin-right: 4px;
+    color: #ffe9a8;
+    -webkit-text-stroke: 0.5px rgba(255,255,255,0.8);
+  }
+
+  #sidebar .sparkle {
+    font-size: 10px;
+    margin-left: -2px;
+    margin-right: 8px;
+    color: #ffe9a8;
+  }
+
   #shuffle-btn {
     display: block;
     width: auto;
@@ -376,7 +393,7 @@
 
   <div class="main-actions">
     <button id="shuffle-btn">Shuffle Cards</button>
-    <button id="ask-btn" class="primary">Ask</button>
+    <button id="ask-btn" class="primary"><i class="fas fa-eye"></i> <i class="fas fa-star sparkle" aria-hidden="true"></i> Ask</button>
   </div>
 </div>
 
@@ -384,7 +401,7 @@
 <div id="sidebar">
   <h3>Menu</h3>
   <button id="open-journal"><i class="fas fa-book"></i> Journal</button>
-  <button id="open-ask"><i class="fas fa-star-and-crescent"></i> Ask</button>
+  <button id="open-ask"><i class="fas fa-eye"></i> <i class="fas fa-star sparkle" aria-hidden="true"></i> Ask</button>
   <button id="open-history"><i class="fas fa-clock-rotate-left"></i> History</button>
   <button id="open-settings"><i class="fas fa-cog"></i> Settings</button>
 </div>
@@ -399,13 +416,13 @@
   <button id="journal-save">Save Entry</button>
   <button id="journal-clear">Clear All</button>
   <button id="journal-close">Close</button>
-  <div><button id="journal-ask" class="primary">Ask</button></div>
+  <div><button id="journal-ask" class="primary"><i class="fas fa-eye"></i> <i class="fas fa-star sparkle" aria-hidden="true"></i> Ask</button></div>
   <div id="journal-entries"></div>
 </div>
 
 <!-- Ask Modal -->
 <div id="ask-modal" class="astro-modal">
-  <h2><i class="fas fa-star-and-crescent"></i> Ask Astrobeats</h2>
+  <h2><i class="fas fa-eye"></i> <i class="fas fa-star sparkle" aria-hidden="true"></i> Ask Astrobeats</h2>
   <div id="ask-current-cards"></div>
   <textarea id="ask-input" rows="3" placeholder="Ask your question..."></textarea>
   <button id="ask-submit" class="primary">Ask</button>
