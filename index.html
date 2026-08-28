@@ -105,22 +105,17 @@
   .main-actions {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
     gap: 12px;
+    width: 100%;
     margin-bottom: 20px;
   }
 
   .main-actions-row {
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 16px;
     flex-wrap: wrap;
-  }
-
-  .main-actions-row.left {
-    width: 100%;
-    justify-content: flex-start;
-    padding-left: 0;
   }
 
   .main-actions button {
@@ -404,7 +399,7 @@
       <button id="shuffle-btn">Shuffle Cards</button>
       <button id="journal-btn">Journal</button>
     </div>
-    <div class="main-actions-row left">
+    <div class="main-actions-row">
       <button id="ask-btn" class="primary"><i class="fas fa-eye"></i> Ask</button>
     </div>
   </div>
