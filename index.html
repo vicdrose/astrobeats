@@ -117,6 +117,12 @@
     flex-wrap: wrap;
   }
 
+  .main-actions-row.left {
+    width: 100%;
+    justify-content: flex-start;
+    padding-left: 0;
+  }
+
   .main-actions button {
     padding: 10px 24px;
     font-size: 16px;
@@ -277,11 +283,10 @@
 
   .astro-modal button.primary {
     background: #6d4cff;
-    border-color: #fff;
-    border-width: 2px;
+    border-color: #6d4cff;
   }
 
-  .astro-modal button.primary:hover { background: #8166ff; border-color: #fff; }
+  .astro-modal button.primary:hover { background: #8166ff; }
 
   /* Ask status / response */
   #ask-status {
@@ -399,7 +404,7 @@
       <button id="shuffle-btn">Shuffle Cards</button>
       <button id="journal-btn">Journal</button>
     </div>
-    <div class="main-actions-row">
+    <div class="main-actions-row left">
       <button id="ask-btn" class="primary"><i class="fas fa-eye"></i> Ask</button>
     </div>
   </div>
@@ -434,9 +439,11 @@
   <h2><i class="fas fa-eye"></i> Ask Astrobeats</h2>
   <div id="ask-current-cards"></div>
   <textarea id="ask-input" rows="3" placeholder="Ask your question..."></textarea>
-  <button id="ask-submit" class="primary">Ask</button>
-  <button id="ask-close">Close</button>
-  <div><button id="ask-history">History</button></div>
+  <div><button id="ask-submit" class="primary">Ask</button></div>
+  <div>
+    <button id="ask-close">Close</button>
+    <button id="ask-history">History</button>
+  </div>
   <div id="ask-status"></div>
   <div id="ask-response"></div>
 </div>
