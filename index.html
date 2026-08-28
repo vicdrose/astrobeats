@@ -184,6 +184,18 @@
     border-bottom: 1px solid white;
   }
 
+  #sidebar .soon-badge {
+    float: right;
+    font-style: italic;
+    font-size: 11px;
+    color: #d9c6ff;
+    border: 1px solid rgba(217,198,255,0.6);
+    border-radius: 999px;
+    padding: 2px 10px;
+    margin-top: 2px;
+    line-height: 1.2;
+  }
+
   /* Overlay for sidebar and modal */
   #overlay {
     position: fixed;
@@ -386,6 +398,7 @@
   <button id="open-journal"><i class="fas fa-book"></i> Journal</button>
   <button id="open-ask"><i class="fas fa-eye"></i> Ask</button>
   <button id="open-history"><i class="fas fa-clock-rotate-left"></i> History</button>
+  <button id="open-community"><i class="fas fa-users"></i> Community <span class="soon-badge">Soon</span></button>
   <button id="open-settings"><i class="fas fa-cog"></i> Settings</button>
 </div>
 
@@ -421,6 +434,18 @@
   <button id="history-delete-all">Delete All</button>
   <div id="history-list"></div>
   <button id="history-close">Close</button>
+</div>
+
+<!-- Community Modal -->
+<div id="community-modal" class="astro-modal">
+  <h2><i class="fas fa-users"></i> Community</h2>
+  <p id="community-message">
+    The Astrobeats Hangout Space is coming soon — a place to gather and do
+    Astrobeats consultations together, talk about astrology and crystals,
+    and build shared group journals to discover what the community feels
+    about your placements.
+  </p>
+  <button id="community-close">Close</button>
 </div>
 
 <!-- Settings Modal -->
@@ -531,7 +556,7 @@ const overlay = document.querySelector('#overlay');
 
 function closeAll(){
   sidebar.classList.remove('open');
-  [journalModal, askModal, settingsModal, historyModal].forEach(m => m.style.display='none');
+  [journalModal, askModal, settingsModal, historyModal, communityModal].forEach(m => m.style.display='none');
   overlay.style.display='none';
 }
 
@@ -648,6 +673,19 @@ document.querySelector('#settings-save').addEventListener('click',()=>{
   const st = document.querySelector('#settings-status');
   st.textContent = key ? 'Saved.' : 'Saved (no key set).';
 });
+
+// --- Community modal ---
+const communityModal = document.querySelector('#community-modal');
+const openCommunityBtn = document.querySelector('#open-community');
+const communityCloseBtn = document.querySelector('#community-close');
+
+openCommunityBtn.addEventListener('click',()=>{
+  sidebar.classList.remove('open');
+  communityModal.style.display='block';
+  overlay.style.display='block';
+});
+
+communityCloseBtn.addEventListener('click', closeAll);
 
 // --- Ask modal ---
 const askModal = document.querySelector('#ask-modal');
