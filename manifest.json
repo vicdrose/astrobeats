@@ -1,7 +1,7 @@
 {
   "name": "AstroBeats",
   "short_name": "AstroBeats",
-  "start_url": "/astrobeats/save-state-2-tmp.html",
+  "start_url": "/astrobeats/index.html",
   "display": "fullscreen",
   "background_color": "#000000",
   "theme_color": "#000000",
