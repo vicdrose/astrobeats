@@ -413,6 +413,7 @@
   <button id="open-history"><i class="fas fa-clock-rotate-left"></i> History</button>
   <button id="open-community"><i class="fas fa-users"></i> Community <span class="soon-badge">Soon</span></button>
   <button id="open-settings"><i class="fas fa-cog"></i> Settings</button>
+  <button id="open-hangout"><i class="fas fa-masks-theater"></i> Hangout</button>
 </div>
 
 <!-- Overlay -->
@@ -680,6 +681,11 @@ openSettingsBtn.addEventListener('click',()=>{
   document.querySelector('#settings-status').textContent='';
   settingsModal.style.display='block';
   overlay.style.display='block';
+});
+
+// --- Hangout ---
+document.querySelector('#open-hangout').addEventListener('click',()=>{
+  window.location.href = 'https://vicdrose.github.io/hangout/';
 });
 
 settingsCloseBtn.addEventListener('click', closeAll);
