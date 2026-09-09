@@ -384,6 +384,14 @@
     margin-top: 12px;
   }
 
+  #bc-wheel {
+    display: block;
+    margin: 0 auto 8px;
+    width: 90%;
+    max-width: 340px;
+    aspect-ratio: 1 / 1;
+  }
+
   #bc-result .bc-angles {
     margin: 10px 0 4px;
     font-size: 14px;
@@ -1150,16 +1158,16 @@ const HOUSE_SYSTEMS = {
 
 const SIGNS = ['Aries','Taurus','Gemini','Cancer','Leo','Virgo','Libra','Scorpio','Sagittarius','Capricorn','Aquarius','Pisces'];
 const PLANET_DEFS = [
-  { name: 'Sun',     emoji: '&#x2609;' },
-  { name: 'Moon',    emoji: '&#x263D;' },
-  { name: 'Mercury', emoji: '&#x263F;' },
-  { name: 'Venus',   emoji: '&#x2640;' },
-  { name: 'Mars',    emoji: '&#x2642;' },
-  { name: 'Jupiter', emoji: '&#x2643;' },
-  { name: 'Saturn',  emoji: '&#x2644;' },
-  { name: 'Uranus',  emoji: '&#x2645;' },
-  { name: 'Neptune', emoji: '&#x2646;' },
-  { name: 'Pluto',   emoji: '&#x2647;' }
+  { name: 'Sun',     emoji: '☉' },
+  { name: 'Moon',    emoji: '☽' },
+  { name: 'Mercury', emoji: '☿' },
+  { name: 'Venus',   emoji: '♀' },
+  { name: 'Mars',    emoji: '♂' },
+  { name: 'Jupiter', emoji: '♃' },
+  { name: 'Saturn',  emoji: '♄' },
+  { name: 'Uranus',  emoji: '♅' },
+  { name: 'Neptune', emoji: '♆' },
+  { name: 'Pluto',   emoji: '♇' }
 ];
 
 const CHARTS_KEY = 'astrobeats_birth_charts';
@@ -1400,6 +1408,7 @@ function resultCard(chart, z){
   const ayNote = z.offset ? ` &middot; ayanamsa ${formatDegMin(z.offset)}` : '';
   const houseLabel = (HOUSE_SYSTEMS[chart.houseSystem] || HOUSE_SYSTEMS.placidus).label;
   return `
+    <canvas id="bc-wheel" width="720" height="720"></canvas>
     <div class="bc-summary">
       <strong>${chart.name}</strong>${sunLine}<br>
       ${dateLabel}, ${formatTime12(chart.time)}<br>
@@ -1430,10 +1439,101 @@ function formatTime12(t){
   return `${hh}:${String(m).padStart(2,'0')} ${ampm}`;
 }
 
+const SIGN_GLYPHS = ['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓'];
+
+function drawWheel(canvas, chart, z){
+  const ctx = canvas.getContext('2d');
+  const S = canvas.width;
+  const cx = S/2, cy = S/2, R = S/2 - 12;
+  ctx.clearRect(0, 0, S, S);
+
+  // Shift longitudes into the selected zodiac frame (tropical = offset 0)
+  const off = z.offset || 0;
+  const asc = ((chart.angles.ascendant - off) % 360 + 360) % 360;
+  const phi = lon => {
+    const L = ((lon - off) % 360 + 360) % 360;
+    const d = ((L - asc) % 360 + 360) % 360;
+    return Math.PI - d * Math.PI / 180;      // ascendant on the left, longitude CCW
+  };
+  const px = (r, t) => cx + r * Math.cos(t);
+  const py = (r, t) => cy - r * Math.sin(t);
+  const line = (r1, r2, t, color, width) => {
+    ctx.strokeStyle = color; ctx.lineWidth = width;
+    ctx.beginPath();
+    ctx.moveTo(px(r1, t), py(r1, t));
+    ctx.lineTo(px(r2, t), py(r2, t));
+    ctx.stroke();
+  };
+  const circle = (r, color, width) => {
+    ctx.strokeStyle = color; ctx.lineWidth = width;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+    ctx.stroke();
+  };
+
+  circle(R, 'rgba(255,255,255,0.85)', 2);
+  circle(R * 0.86, 'rgba(255,255,255,0.35)', 1.5);
+  circle(R * 0.12, 'rgba(255,255,255,0.12)', 1);
+
+  // 12 equally-spaced sign sectors + glyphs
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (let k = 0; k < 12; k++){
+    line(R * 0.86, R, phi(k * 30), 'rgba(255,255,255,0.25)', 1.5);
+    const tm = phi(k * 30 + 15);
+    ctx.fillStyle = (k === Math.floor(asc / 30)) ? '#ffd76a' : 'rgba(255,255,255,0.85)';
+    ctx.font = `${Math.round(S * 0.045)}px Arial`;
+    ctx.fillText(SIGN_GLYPHS[k], px(R * 0.925, tm), py(R * 0.925, tm));
+  }
+
+  // House cusp spokes (skip the index-0 sentinel in chart.houses)
+  const cs = chart.houses.slice(1, 13);
+  for (let i = 0; i < 12; i++){
+    line(R * 0.12, R * 0.86, phi(cs[i]), 'rgba(255,255,255,0.45)', 1.5);
+  }
+
+  // Highlight the four angles: ASC / DSC / MC / IC
+  const angles = [
+    chart.angles.ascendant,
+    (chart.angles.ascendant + 180) % 360,
+    chart.angles.mc,
+    (chart.angles.mc + 180) % 360
+  ];
+  for (const a of angles){
+    line(R * 0.12, R * 0.86, phi(a), 'rgba(255,255,255,0.9)', 3);
+  }
+
+  // Small house numbers at the arcs' midpoints (houses run clockwise from the ASC)
+  ctx.font = `${Math.round(S * 0.024)}px Arial`;
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  for (let i = 0; i < 12; i++){
+    const c1 = cs[i];
+    const c2 = cs[(i === 0) ? 11 : i - 1];
+    const spread = (((c2 - c1) % 360) + 360) % 360;
+    const mid = (c1 + spread / 2) % 360;
+    ctx.fillText(String(i + 1), px(R * 0.26, phi(mid)), py(R * 0.26, phi(mid)));
+  }
+
+  // Planet glyphs positioned by longitude
+  for (const p of chart.planets){
+    const t = phi(p.longitude);
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(px(R * 0.72, t), py(R * 0.72, t), 5, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.fillStyle = '#d9c6ff';
+    ctx.font = `${Math.round(S * 0.05)}px Arial`;
+    ctx.fillText(p.emoji, px(R * 0.72, t), py(R * 0.72, t));
+  }
+}
+
 function renderResult(){
   if (!currentChart) return;
-  bcResult.innerHTML = resultCard(currentChart, zodiacSelection());
+  const z = zodiacSelection();
+  bcResult.innerHTML = resultCard(currentChart, z);
   bcResult.style.display = 'block';
+  const cv = bcResult.querySelector('#bc-wheel');
+  if (cv) drawWheel(cv, currentChart, z);
 }
 
 // --- Save / load / delete ---
