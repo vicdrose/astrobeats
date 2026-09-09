@@ -248,7 +248,8 @@
   .astro-modal input[type="password"],
   .astro-modal input[type="text"],
   .astro-modal input[type="date"],
-  .astro-modal input[type="time"] {
+  .astro-modal input[type="time"],
+  .astro-modal select {
     width: 100%;
     box-sizing: border-box;
     margin-bottom: 12px;
@@ -531,6 +532,12 @@
   <input type="time" id="bc-time">
   <label for="bc-place">Birthplace</label>
   <input type="text" id="bc-place" placeholder="e.g. New York, NY">
+  <label for="bc-zodiac">Zodiac</label>
+  <select id="bc-zodiac">
+    <option value="tropical">Tropical (Western)</option>
+    <option value="lahiri">Sidereal (Lahiri / Vedic)</option>
+    <option value="fagan">Sidereal (Fagan/Bradley)</option>
+  </select>
   <div>
     <button id="bc-generate" class="primary"><i class="fas fa-calculator"></i> Generate Chart</button>
     <button id="bc-save">Save Chart</button>
@@ -1122,8 +1129,15 @@ if ('serviceWorker' in navigator) {
   </script>
 
   <script type="module">
-import { SwissEphemeris, Planet, HouseSystem } from 'https://cdn.jsdelivr.net/npm/@swisseph/browser@1.3.1/+esm';
+import { SwissEphemeris, Planet, HouseSystem, SiderealMode } from 'https://cdn.jsdelivr.net/npm/@swisseph/browser@1.3.1/+esm';
 const WASM_URL = 'https://cdn.jsdelivr.net/npm/@swisseph/browser@1.3.1/dist/swisseph.wasm';
+
+const AYANAMSA_MODES = { lahiri: SiderealMode.Lahiri, fagan: SiderealMode.FaganBradley };
+const ZODIAC_LABELS = {
+  tropical: 'Tropical (Western)',
+  lahiri: 'Sidereal (Lahiri / Vedic)',
+  fagan: 'Sidereal (Fagan/Bradley)'
+};
 
 const SIGNS = ['Aries','Taurus','Gemini','Cancer','Leo','Virgo','Libra','Scorpio','Sagittarius','Capricorn','Aquarius','Pisces'];
 const PLANET_DEFS = [
@@ -1176,8 +1190,8 @@ function toDecimalHour(timeStr){
 }
 
 // --- Zodiac formatting ---
-function zodiacInfo(longitude){
-  const norm = ((longitude % 360) + 360) % 360;
+function zodiacInfo(longitude, offset){
+  const norm = (((longitude - offset) % 360) + 360) % 360;
   let signIndex = Math.floor(norm / 30);
   let inSign = norm - signIndex * 30;
   let deg = Math.floor(inSign);
@@ -1187,9 +1201,17 @@ function zodiacInfo(longitude){
   return { sign: SIGNS[signIndex], degree: deg, minute: min };
 }
 
-function positionText(longitude){
-  const z = zodiacInfo(longitude);
+function positionText(longitude, offset){
+  const z = zodiacInfo(longitude, offset);
   return `${z.sign} ${z.degree}&deg;${z.minute.toString().padStart(2,'0')}&#39;`;
+}
+
+// The currently-selected zodiac key and its ayanamsa offset for the current chart.
+function zodiacSelection(){
+  const key = bcZodiac.value || 'tropical';
+  if (key === 'tropical') return { key, label: ZODIAC_LABELS.tropical, offset: 0 };
+  const ay = (currentChart && currentChart.ayanamsa) ? (currentChart.ayanamsa[key] || 0) : 0;
+  return { key, label: ZODIAC_LABELS[key] || key, offset: ay };
 }
 
 // --- Geocoding (OpenStreetMap Nominatim, cached) ---
@@ -1312,6 +1334,13 @@ async function calculateChart(){
   const houses = swe.calculateHouses(jd, geo.lat, geo.lon, HouseSystem.Placidus);
   planets.forEach(p => { p.house = longitudeToHouse(houses.cusps, p.longitude); });
 
+  // Raw (tropical) values are stored; sidereal offsets come from the real ayanamsa.
+  const ayanamsa = {};
+  for (const key in AYANAMSA_MODES){
+    swe.setSiderealMode(AYANAMSA_MODES[key]);
+    ayanamsa[key] = swe.getAyanamsa(jd);
+  }
+
   currentChart = {
     id: 'bc_' + Date.now(),
     name, date, time: time || '12:00', place,
@@ -1319,6 +1348,7 @@ async function calculateChart(){
     timezone: tzLabel,
     offsetMinutes: offset,
     jd,
+    ayanamsa,
     angles: { ascendant: houses.ascendant, mc: houses.mc },
     houses: houses.cusps,
     planets
@@ -1329,29 +1359,38 @@ async function calculateChart(){
   return currentChart;
 }
 
-function resultCard(chart){
+function resultCard(chart, z){
   const sun = chart.planets.find(p => p.name === 'Sun');
   const rows = chart.planets.map(p =>
-    `<tr><td>${p.emoji} ${p.name}</td><td>${positionText(p.longitude)}</td><td>${p.house}</td></tr>`
+    `<tr><td>${p.emoji} ${p.name}</td><td>${positionText(p.longitude, z.offset)}</td><td>${p.house}</td></tr>`
   ).join('');
   const [yd, md, dd] = chart.date.split('-').map(Number);
   const d = new Date(Date.UTC(yd, md - 1, dd));
   const dateLabel = d.toLocaleDateString(undefined, { timeZone: 'UTC', year: 'numeric', month: 'long', day: 'numeric' });
-  const sunLine = sun ? ` Sun in ${zodiacInfo(sun.longitude).sign}` : '';
+  const sunLine = sun ? ` Sun in ${zodiacInfo(sun.longitude, z.offset).sign}` : '';
+  const ayNote = z.offset ? ` &middot; ayanamsa ${formatDegMin(z.offset)}` : '';
   return `
     <div class="bc-summary">
       <strong>${chart.name}</strong>${sunLine}<br>
       ${dateLabel}, ${formatTime12(chart.time)}<br>
       ${chart.place} &mdash; ${chart.timezone}
     </div>
+    <div class="bc-summary">${z.label}${ayNote}</div>
     <div class="bc-angles">
-      <strong>Ascendant:</strong> ${positionText(chart.angles.ascendant)} &nbsp;|&nbsp;
-      <strong>MC:</strong> ${positionText(chart.angles.mc)}
+      <strong>Ascendant:</strong> ${positionText(chart.angles.ascendant, z.offset)} &nbsp;|&nbsp;
+      <strong>MC:</strong> ${positionText(chart.angles.mc, z.offset)}
     </div>
     <table class="bc-planets">
       <tr><th>Body</th><th>Position</th><th>House</th></tr>
       ${rows}
     </table>`;
+}
+
+function formatDegMin(degNum){
+  const totalMin = Math.round(degNum * 60);
+  const d = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${d}&deg;${String(m).padStart(2,'0')}&#39;`;
 }
 
 function formatTime12(t){
@@ -1363,7 +1402,7 @@ function formatTime12(t){
 
 function renderResult(){
   if (!currentChart) return;
-  bcResult.innerHTML = resultCard(currentChart);
+  bcResult.innerHTML = resultCard(currentChart, zodiacSelection());
   bcResult.style.display = 'block';
 }
 
@@ -1390,7 +1429,8 @@ function renderSavedList(){
   }
   bcSavedList.innerHTML = list.map(c => {
     const sun = c.planets.find(p => p.name === 'Sun');
-    const sunSign = sun ? zodiacInfo(sun.longitude).sign : '';
+    const offset = c.ayanamsa ? (c.ayanamsa[bcZodiac.value] || 0) : 0;
+    const sunSign = sun ? zodiacInfo(sun.longitude, bcZodiac.value === 'tropical' ? 0 : offset).sign : '';
     const activeClass = c.id === active ? ' active' : '';
     const activeMark = c.id === active ? ' &#9733;' : '';
     return `
@@ -1453,6 +1493,22 @@ document.querySelector('#bc-close').addEventListener('click', () => {
 
 document.querySelector('#bc-generate').addEventListener('click', () => {
   calculateChart();
+});
+
+// Zodiac toggle: default to tropical unless the user has picked sidereal before.
+const ZODIAC_PREF_KEY = 'astrobeats_bc_zodiac';
+const bcZodiac = document.querySelector('#bc-zodiac');
+const savedZodiac = localStorage.getItem(ZODIAC_PREF_KEY);
+if (savedZodiac && ZODIAC_LABELS[savedZodiac]){
+  bcZodiac.value = savedZodiac;
+}
+bcZodiac.addEventListener('change', () => {
+  localStorage.setItem(ZODIAC_PREF_KEY, bcZodiac.value);
+  if (currentChart){
+    renderResult();
+    renderSavedList();
+    setStatus(ZODIAC_LABELS[bcZodiac.value] + ' selected.');
+  }
 });
 
 document.querySelector('#bc-save').addEventListener('click', saveCurrentChart);
