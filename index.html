@@ -246,7 +246,9 @@
 
   .astro-modal textarea,
   .astro-modal input[type="password"],
-  .astro-modal input[type="text"] {
+  .astro-modal input[type="text"],
+  .astro-modal input[type="date"],
+  .astro-modal input[type="time"] {
     width: 100%;
     box-sizing: border-box;
     margin-bottom: 12px;
@@ -377,6 +379,69 @@
     margin-bottom: 12px;
   }
 
+  #bc-result {
+    margin-top: 12px;
+  }
+
+  #bc-result .bc-angles {
+    margin: 10px 0 4px;
+    font-size: 14px;
+  }
+
+  .bc-planets {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 6px;
+  }
+
+  .bc-planets th,
+  .bc-planets td {
+    padding: 4px 6px;
+    border-bottom: 1px solid rgba(255,255,255,0.15);
+    text-align: left;
+    font-size: 14px;
+  }
+
+  .bc-planets th {
+    opacity: 0.7;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .bc-summary {
+    font-size: 13px;
+    opacity: 0.85;
+    line-height: 1.5;
+  }
+
+  .bc-saved-item {
+    padding: 8px 10px;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 8px;
+    margin: 6px 0;
+  }
+
+  .bc-saved-item.active {
+    border-color: #d9c6ff;
+    background: rgba(217,198,255,0.08);
+  }
+
+  .bc-saved-item .bc-item-name {
+    font-weight: bold;
+  }
+
+  .bc-saved-item .bc-item-meta {
+    font-size: 12px;
+    opacity: 0.75;
+    margin: 2px 0 6px;
+  }
+
+  .bc-saved-item button {
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+
   .hidden { display: none; }
 </style>
 </head>
@@ -413,6 +478,7 @@
   <button id="open-journal"><i class="fas fa-book"></i> Journal</button>
   <button id="open-ask"><i class="fas fa-eye"></i> Ask</button>
   <button id="open-history"><i class="fas fa-clock-rotate-left"></i> History</button>
+  <button id="open-birth-chart"><i class="fas fa-sun"></i> Birth Chart</button>
   <button id="open-community"><i class="fas fa-users"></i> Community <span class="soon-badge">Soon</span></button>
   <button id="open-settings"><i class="fas fa-cog"></i> Settings</button>
   <button id="open-hangout"><i class="fas fa-masks-theater"></i> Hangout</button>
@@ -452,6 +518,30 @@
   <button id="history-delete-all">Delete All</button>
   <div id="history-list"></div>
   <button id="history-close">Close</button>
+</div>
+
+<!-- Birth Chart Modal -->
+<div id="birth-chart-modal" class="astro-modal">
+  <h2><i class="fas fa-sun"></i> Birth Chart</h2>
+  <label for="bc-name">Name</label>
+  <input type="text" id="bc-name" placeholder="Who is this chart for?">
+  <label for="bc-date">Birth Date</label>
+  <input type="date" id="bc-date">
+  <label for="bc-time">Birth Time <em style="opacity:0.6; font-weight:normal;">(blank = noon)</em></label>
+  <input type="time" id="bc-time">
+  <label for="bc-place">Birthplace</label>
+  <input type="text" id="bc-place" placeholder="e.g. New York, NY">
+  <div>
+    <button id="bc-generate" class="primary"><i class="fas fa-calculator"></i> Generate Chart</button>
+    <button id="bc-save">Save Chart</button>
+    <button id="bc-close">Close</button>
+  </div>
+  <div id="bc-status"></div>
+  <div id="bc-result"></div>
+  <div id="bc-saved">
+    <h3 style="margin:16px 0 6px; font-size:14px; border-bottom:1px solid rgba(255,255,255,0.25); padding-bottom:6px;">Saved Charts</h3>
+    <div id="bc-saved-list"></div>
+  </div>
 </div>
 
 <!-- Community Modal -->
@@ -574,7 +664,7 @@ const overlay = document.querySelector('#overlay');
 
 function closeAll(){
   sidebar.classList.remove('open');
-  [journalModal, askModal, settingsModal, historyModal, communityModal].forEach(m => m.style.display='none');
+  [journalModal, askModal, settingsModal, historyModal, communityModal, birthChartModal].forEach(m => m.style.display='none');
   overlay.style.display='none';
 }
 
@@ -1029,6 +1119,348 @@ if ('serviceWorker' in navigator) {
     .then(() => console.log('Service Worker Registered'))
     .catch(err => console.log('SW registration failed:', err));
 }
+  </script>
+
+  <script type="module">
+import { SwissEphemeris, Planet, HouseSystem } from 'https://cdn.jsdelivr.net/npm/@swisseph/browser@1.3.1/+esm';
+const WASM_URL = 'https://cdn.jsdelivr.net/npm/@swisseph/browser@1.3.1/dist/swisseph.wasm';
+
+const SIGNS = ['Aries','Taurus','Gemini','Cancer','Leo','Virgo','Libra','Scorpio','Sagittarius','Capricorn','Aquarius','Pisces'];
+const PLANET_DEFS = [
+  { name: 'Sun',     emoji: '&#x2609;' },
+  { name: 'Moon',    emoji: '&#x263D;' },
+  { name: 'Mercury', emoji: '&#x263F;' },
+  { name: 'Venus',   emoji: '&#x2640;' },
+  { name: 'Mars',    emoji: '&#x2642;' },
+  { name: 'Jupiter', emoji: '&#x2643;' },
+  { name: 'Saturn',  emoji: '&#x2644;' },
+  { name: 'Uranus',  emoji: '&#x2645;' },
+  { name: 'Neptune', emoji: '&#x2646;' },
+  { name: 'Pluto',   emoji: '&#x2647;' }
+];
+
+const CHARTS_KEY = 'astrobeats_birth_charts';
+const ACTIVE_KEY = 'astrobeats_active_birth_chart';
+const GEO_PREFIX = 'astrobeats_geocode_';
+const TZ_PREFIX = 'astrobeats_tz_';
+
+const bcModal = document.querySelector('#birth-chart-modal');
+const bcStatus = document.querySelector('#bc-status');
+const bcResult = document.querySelector('#bc-result');
+const bcSavedList = document.querySelector('#bc-saved-list');
+
+let swe = null;
+let currentChart = null;
+
+function setStatus(msg){
+  bcStatus.textContent = msg || '';
+}
+
+function loadSavedCharts(){
+  try { return JSON.parse(localStorage.getItem(CHARTS_KEY) || '[]'); }
+  catch(e){ return []; }
+}
+
+function writeSavedCharts(list){
+  localStorage.setItem(CHARTS_KEY, JSON.stringify(list));
+}
+
+function activeChartId(){
+  return localStorage.getItem(ACTIVE_KEY) || null;
+}
+
+// Resolve a birth-hour into a decimal hour.
+function toDecimalHour(timeStr){
+  const parts = (timeStr || '12:00').split(':').map(Number);
+  return (parts[0] || 12) + (parts[1] || 0) / 60;
+}
+
+// --- Zodiac formatting ---
+function zodiacInfo(longitude){
+  const norm = ((longitude % 360) + 360) % 360;
+  let signIndex = Math.floor(norm / 30);
+  let inSign = norm - signIndex * 30;
+  let deg = Math.floor(inSign);
+  let min = Math.round((inSign - deg) * 60);
+  if (min === 60){ min = 0; deg += 1; }
+  if (deg === 30){ deg = 0; signIndex = (signIndex + 1) % 12; }
+  return { sign: SIGNS[signIndex], degree: deg, minute: min };
+}
+
+function positionText(longitude){
+  const z = zodiacInfo(longitude);
+  return `${z.sign} ${z.degree}&deg;${z.minute.toString().padStart(2,'0')}&#39;`;
+}
+
+// --- Geocoding (OpenStreetMap Nominatim, cached) ---
+async function geocode(city){
+  const key = GEO_PREFIX + city.toLowerCase();
+  const hit = localStorage.getItem(key);
+  if (hit) return JSON.parse(hit);
+  const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(city);
+  const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+  const arr = await res.json();
+  if (!Array.isArray(arr) || arr.length === 0){
+    throw new Error('Could not find "' + city + '". Try adding a region or country, e.g. "New York, NY, USA".');
+  }
+  const geo = {
+    lat: parseFloat(arr[0].lat),
+    lon: parseFloat(arr[0].lon),
+    label: arr[0].display_name
+  };
+  localStorage.setItem(key, JSON.stringify(geo));
+  return geo;
+}
+
+// --- IANA timezone from coordinates (cached) ---
+async function ianaTimezone(lat, lon){
+  const key = TZ_PREFIX + lat.toFixed(4) + ',' + lon.toFixed(4);
+  const hit = localStorage.getItem(key);
+  if (hit) return hit || null;
+  const url = `https://timeapi.io/api/timezone/coordinate?latitude=${lat}&longitude=${lon}`;
+  const res = await fetch(url);
+  const json = await res.json();
+  const tz = json && json.timeZone ? json.timeZone : null;
+  if (tz) localStorage.setItem(key, tz);
+  return tz;
+}
+
+// Offset in minutes EAST of UTC for a given IANA zone at an instant.
+function tzOffsetMinutesAt(tz, utcMs){
+  const dtf = new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz, hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit'
+  });
+  const parts = {};
+  for (const p of dtf.formatToParts(new Date(utcMs))) parts[p.type] = p.value;
+  const asUTC = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour % 24, +parts.minute, +parts.second);
+  return (asUTC - utcMs) / 60000;
+}
+
+// Which numbered house a longitude falls into, given Placidus cusps.
+function longitudeToHouse(cusps, lon){
+  const L = ((lon % 360) + 360) % 360;
+  for (let i = 0; i < 12; i++){
+    const c1 = ((cusps[i] % 360) + 360) % 360;
+    let c2 = ((cusps[(i + 1) % 12] % 360) + 360) % 360;
+    let myL = L;
+    if (c2 < c1) c2 += 360;
+    if (myL < c1) myL += 360;
+    if (myL >= c1 && myL < c2) return i + 1;
+  }
+  return 1;
+}
+
+async function calculateChart(){
+  const name = document.querySelector('#bc-name').value.trim() || 'My Chart';
+  const date = document.querySelector('#bc-date').value;
+  const time = document.querySelector('#bc-time').value;
+  const place = document.querySelector('#bc-place').value.trim();
+
+  if (!date) { setStatus('Please enter a birth date.'); return null; }
+  if (!place) { setStatus('Please enter a birthplace.'); return null; }
+
+  setStatus('Resolving birthplace...');
+  let geo;
+  try {
+    geo = await geocode(place);
+  } catch(e){
+    setStatus(e.message);
+    return null;
+  }
+
+  const [yb, mb, db] = date.split('-').map(Number);
+  const wallUTC = Date.UTC(yb, mb - 1, db) + Math.round(toDecimalHour(time) * 3600 * 1000);
+  let tz = null;
+  try { tz = await ianaTimezone(geo.lat, geo.lon); } catch(e){ /* fall through */ }
+
+  let tzLabel;
+  if (tz){
+    tzLabel = tz;
+  } else {
+    const off = -new Date(wallUTC).getTimezoneOffset();
+    const sign = off >= 0 ? '+' : '-';
+    tzLabel = `(browser UTC${sign}${String(Math.abs(Math.floor(off / 60))).padStart(2,'0')}:${String(Math.abs(off % 60)).padStart(2,'0')})`;
+  }
+
+  // Local civil time -> absolute instant by subtracting the local offset (refined once for DST edges).
+  let offset = tz ? tzOffsetMinutesAt(tz, wallUTC) : -new Date(wallUTC).getTimezoneOffset();
+  let instant = wallUTC - offset * 60000;
+  if (tz){
+    offset = tzOffsetMinutesAt(tz, instant);
+    instant = wallUTC - offset * 60000;
+  }
+
+  if (!swe){
+    setStatus('Loading Swiss Ephemeris engine...');
+    swe = new SwissEphemeris();
+    await swe.init(WASM_URL);
+  }
+
+  const ut = new Date(instant);
+  const jd = swe.julianDay(
+    ut.getUTCFullYear(), ut.getUTCMonth() + 1, ut.getUTCDate(),
+    ut.getUTCHours() + ut.getUTCMinutes() / 60 + ut.getUTCSeconds() / 3600
+  );
+
+  const planets = PLANET_DEFS.map(def => {
+    const pos = swe.calculatePosition(jd, Planet[def.name]);
+    return { name: def.name, emoji: def.emoji, longitude: pos.longitude };
+  });
+
+  const houses = swe.calculateHouses(jd, geo.lat, geo.lon, HouseSystem.Placidus);
+  planets.forEach(p => { p.house = longitudeToHouse(houses.cusps, p.longitude); });
+
+  currentChart = {
+    id: 'bc_' + Date.now(),
+    name, date, time: time || '12:00', place,
+    geo: { lat: geo.lat, lon: geo.lon, label: geo.label },
+    timezone: tzLabel,
+    offsetMinutes: offset,
+    jd,
+    angles: { ascendant: houses.ascendant, mc: houses.mc },
+    houses: houses.cusps,
+    planets
+  };
+
+  renderResult();
+  setStatus('Chart calculated for ' + name + '.');
+  return currentChart;
+}
+
+function resultCard(chart){
+  const sun = chart.planets.find(p => p.name === 'Sun');
+  const rows = chart.planets.map(p =>
+    `<tr><td>${p.emoji} ${p.name}</td><td>${positionText(p.longitude)}</td><td>${p.house}</td></tr>`
+  ).join('');
+  const [yd, md, dd] = chart.date.split('-').map(Number);
+  const d = new Date(Date.UTC(yd, md - 1, dd));
+  const dateLabel = d.toLocaleDateString(undefined, { timeZone: 'UTC', year: 'numeric', month: 'long', day: 'numeric' });
+  const sunLine = sun ? ` Sun in ${zodiacInfo(sun.longitude).sign}` : '';
+  return `
+    <div class="bc-summary">
+      <strong>${chart.name}</strong>${sunLine}<br>
+      ${dateLabel}, ${formatTime12(chart.time)}<br>
+      ${chart.place} &mdash; ${chart.timezone}
+    </div>
+    <div class="bc-angles">
+      <strong>Ascendant:</strong> ${positionText(chart.angles.ascendant)} &nbsp;|&nbsp;
+      <strong>MC:</strong> ${positionText(chart.angles.mc)}
+    </div>
+    <table class="bc-planets">
+      <tr><th>Body</th><th>Position</th><th>House</th></tr>
+      ${rows}
+    </table>`;
+}
+
+function formatTime12(t){
+  const [h, m] = t.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const hh = ((h + 11) % 12) + 1;
+  return `${hh}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+
+function renderResult(){
+  if (!currentChart) return;
+  bcResult.innerHTML = resultCard(currentChart);
+  bcResult.style.display = 'block';
+}
+
+// --- Save / load / delete ---
+function saveCurrentChart(){
+  if (!currentChart){
+    setStatus('Generate a chart before saving.');
+    return;
+  }
+  const list = loadSavedCharts();
+  currentChart.id = 'bc_' + Date.now();
+  list.unshift(currentChart);
+  writeSavedCharts(list);
+  setStatus('Chart saved.');
+  renderSavedList();
+}
+
+function renderSavedList(){
+  const list = loadSavedCharts();
+  const active = activeChartId();
+  if (!list.length){
+    bcSavedList.innerHTML = '<div style="opacity:0.6; font-size:13px;">No saved charts yet.</div>';
+    return;
+  }
+  bcSavedList.innerHTML = list.map(c => {
+    const sun = c.planets.find(p => p.name === 'Sun');
+    const sunSign = sun ? zodiacInfo(sun.longitude).sign : '';
+    const activeClass = c.id === active ? ' active' : '';
+    const activeMark = c.id === active ? ' &#9733;' : '';
+    return `
+      <div class="bc-saved-item${activeClass}">
+        <div class="bc-item-name">${escapeHtml(c.name)}${activeMark}</div>
+        <div class="bc-item-meta">${escapeHtml(c.date)} &middot; ${escapeHtml(c.time)} &middot; ${escapeHtml(c.place)} &middot; ${sunSign}</div>
+        <div class="bc-item-actions">
+          <button data-bc-load="${c.id}">View</button>
+          <button data-bc-active="${c.id}">${c.id === active ? 'Active' : 'Set Active'}</button>
+          <button data-bc-delete="${c.id}">Delete</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  })[c]);
+}
+
+bcSavedList.addEventListener('click', (e) => {
+  const load = e.target.dataset.bcLoad;
+  const setActive = e.target.dataset.bcActive;
+  const del = e.target.dataset.bcDelete;
+  const list = loadSavedCharts();
+  if (load){
+    const c = list.find(x => x.id === load);
+    if (c){
+      currentChart = c;
+      bcName.value = c.name; bcDate.value = c.date; bcTime.value = c.time; bcPlace.value = c.place;
+      renderResult();
+      setStatus('Loaded saved chart.');
+    }
+  } else if (setActive){
+    localStorage.setItem(ACTIVE_KEY, setActive);
+    renderSavedList();
+    setStatus('Active chart set.');
+  } else if (del){
+    if (confirm('Delete this saved chart?')){
+      const next = list.filter(x => x.id !== del);
+      writeSavedCharts(next);
+      renderSavedList();
+    }
+  }
+});
+
+// --- Wiring ---
+document.querySelector('#open-birth-chart').addEventListener('click', () => {
+  document.querySelector('#sidebar').classList.remove('open');
+  bcModal.style.display = 'block';
+  document.querySelector('#overlay').style.display = 'block';
+  renderSavedList();
+});
+
+document.querySelector('#bc-close').addEventListener('click', () => {
+  bcModal.style.display = 'none';
+  document.querySelector('#overlay').style.display = 'none';
+});
+
+document.querySelector('#bc-generate').addEventListener('click', () => {
+  calculateChart();
+});
+
+document.querySelector('#bc-save').addEventListener('click', saveCurrentChart);
+
+const bcName = document.querySelector('#bc-name');
+const bcDate = document.querySelector('#bc-date');
+const bcTime = document.querySelector('#bc-time');
+const bcPlace = document.querySelector('#bc-place');
   </script>
 </body>
 </html>
