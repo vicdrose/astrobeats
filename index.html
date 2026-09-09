@@ -1441,27 +1441,22 @@ function formatTime12(t){
 
 const SIGN_GLYPHS = ['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓'];
 
+const wrap360 = d => ((d % 360) + 360) % 360;
+
 function drawWheel(canvas, chart, z){
   const ctx = canvas.getContext('2d');
   const S = canvas.width;
   const cx = S/2, cy = S/2, R = S/2 - 12;
   ctx.clearRect(0, 0, S, S);
-
-  // Shift longitudes into the selected zodiac frame (tropical = offset 0)
   const off = z.offset || 0;
-  const asc = ((chart.angles.ascendant - off) % 360 + 360) % 360;
-  const phi = lon => {
-    const L = ((lon - off) % 360 + 360) % 360;
-    const d = ((L - asc) % 360 + 360) % 360;
-    return Math.PI - d * Math.PI / 180;      // ascendant on the left, longitude CCW
-  };
-  const px = (r, t) => cx + r * Math.cos(t);
-  const py = (r, t) => cy - r * Math.sin(t);
-  const line = (r1, r2, t, color, width) => {
+
+  const px = (r, th) => cx + r * Math.cos(th * Math.PI / 180);
+  const py = (r, th) => cy - r * Math.sin(th * Math.PI / 180);
+  const line = (r1, r2, th, color, width) => {
     ctx.strokeStyle = color; ctx.lineWidth = width;
     ctx.beginPath();
-    ctx.moveTo(px(r1, t), py(r1, t));
-    ctx.lineTo(px(r2, t), py(r2, t));
+    ctx.moveTo(px(r1, th), py(r1, th));
+    ctx.lineTo(px(r2, th), py(r2, th));
     ctx.stroke();
   };
   const circle = (r, color, width) => {
@@ -1471,59 +1466,87 @@ function drawWheel(canvas, chart, z){
     ctx.stroke();
   };
 
+  // Longitudes are shifted into the current zodiac frame so the whole wheel
+  // (signs, cusps, planets, angles) moves together.
+  const cusps = chart.houses.slice(1, 13).map(L => wrap360(L - off));
+  const cusp = n => cusps[n - 1];
+
+  // Classic wheel: the four angles are anchored at the four cardinal screen
+  // directions (ASC left, IC bottom, DSC right, MC top). Each screen quadrant
+  // covers the three houses between two angles, laid out proportionally to the
+  // house longitudes inside that quadrant (the same fold professional wheels use).
+  const segs = [
+    { a: 1,  b: 4,  th0: 180 },   // ASC -> IC     : houses 1,2,3  (below)
+    { a: 4,  b: 7,  th0: 270 },   // IC  -> DSC    : houses 4,5,6
+    { a: 7,  b: 10, th0: 360 },   // DSC -> MC     : houses 7,8,9
+    { a: 10, b: 1,  th0: 450 }    // MC  -> ASC    : houses 10,11,12
+  ];
+  function thetaFor(lon){
+    const L = wrap360(lon);
+    for (const s of segs){
+      const A = cusp(s.a), B = cusp(s.b);
+      const span = wrap360(B - A);
+      const f = wrap360(L - A);
+      if (f < span){
+        return s.th0 + (f / span) * 90;
+      }
+    }
+    return 180;
+  }
+
   circle(R, 'rgba(255,255,255,0.85)', 2);
   circle(R * 0.86, 'rgba(255,255,255,0.35)', 1.5);
   circle(R * 0.12, 'rgba(255,255,255,0.12)', 1);
 
-  // 12 equally-spaced sign sectors + glyphs
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+
+  // 12 sign sectors + glyphs (sign boundaries are every 30 degrees of longitude)
   for (let k = 0; k < 12; k++){
-    line(R * 0.86, R, phi(k * 30), 'rgba(255,255,255,0.25)', 1.5);
-    const tm = phi(k * 30 + 15);
-    ctx.fillStyle = (k === Math.floor(asc / 30)) ? '#ffd76a' : 'rgba(255,255,255,0.85)';
+    line(R * 0.86, R, thetaFor(k * 30), 'rgba(255,255,255,0.25)', 1.5);
+    const tm = thetaFor(k * 30 + 15);
+    ctx.fillStyle = (k === Math.floor(wrap360(chart.angles.ascendant - off) / 30))
+      ? '#ffd76a' : 'rgba(255,255,255,0.85)';
     ctx.font = `${Math.round(S * 0.045)}px Arial`;
     ctx.fillText(SIGN_GLYPHS[k], px(R * 0.925, tm), py(R * 0.925, tm));
   }
 
-  // House cusp spokes (skip the index-0 sentinel in chart.houses)
-  const cs = chart.houses.slice(1, 13);
+  // House cusp spokes; cardinal cusps (ASC/IC/DSC/MC) get a thick line + label
   for (let i = 0; i < 12; i++){
-    line(R * 0.12, R * 0.86, phi(cs[i]), 'rgba(255,255,255,0.45)', 1.5);
+    const h = i + 1;
+    const cardinal = (h === 1 || h === 4 || h === 7 || h === 10);
+    line(R * 0.12, R * 0.86, thetaFor(cusps[i]),
+      cardinal ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.45)',
+      cardinal ? 3 : 1.5);
+    if (cardinal){
+      const labels = { 1: 'ASC', 4: 'IC', 7: 'DSC', 10: 'MC' };
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.font = `${Math.round(S * 0.024)}px Arial`;
+      const tt = thetaFor(cusps[i]);
+      ctx.fillText(labels[h], px(R * 0.93, tt), py(R * 0.93, tt));
+    }
   }
 
-  // Highlight the four angles: ASC / DSC / MC / IC
-  const angles = [
-    chart.angles.ascendant,
-    (chart.angles.ascendant + 180) % 360,
-    chart.angles.mc,
-    (chart.angles.mc + 180) % 360
-  ];
-  for (const a of angles){
-    line(R * 0.12, R * 0.86, phi(a), 'rgba(255,255,255,0.9)', 3);
-  }
-
-  // Small house numbers at the arcs' midpoints (houses run clockwise from the ASC)
-  ctx.font = `${Math.round(S * 0.024)}px Arial`;
+  // Small house numbers at the wheel-side midpoint of each house wedge
+  ctx.font = `${Math.round(S * 0.025)}px Arial`;
   ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  for (let i = 0; i < 12; i++){
-    const c1 = cs[i];
-    const c2 = cs[(i === 0) ? 11 : i - 1];
-    const spread = (((c2 - c1) % 360) + 360) % 360;
-    const mid = (c1 + spread / 2) % 360;
-    ctx.fillText(String(i + 1), px(R * 0.26, phi(mid)), py(R * 0.26, phi(mid)));
+  for (let n = 1; n <= 12; n++){
+    const span = wrap360(cusp(n % 12 + 1) - cusp(n));
+    const mid = wrap360(cusp(n) + span / 2);
+    const tm = thetaFor(mid);
+    ctx.fillText(String(n), px(R * 0.3, tm), py(R * 0.3, tm));
   }
 
-  // Planet glyphs positioned by longitude
+  // Planet glyphs positioned by longitude, one dot per placement
   for (const p of chart.planets){
-    const t = phi(p.longitude);
+    const tp = thetaFor(wrap360(p.longitude - off));
     ctx.fillStyle = '#fff';
     ctx.beginPath();
-    ctx.arc(px(R * 0.72, t), py(R * 0.72, t), 5, 0, 2 * Math.PI);
+    ctx.arc(px(R * 0.72, tp), py(R * 0.72, tp), 5, 0, 2 * Math.PI);
     ctx.fill();
     ctx.fillStyle = '#d9c6ff';
     ctx.font = `${Math.round(S * 0.05)}px Arial`;
-    ctx.fillText(p.emoji, px(R * 0.72, t), py(R * 0.72, t));
+    ctx.fillText(p.emoji, px(R * 0.72, tp), py(R * 0.72, tp));
   }
 }
 
