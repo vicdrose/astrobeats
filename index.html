@@ -608,7 +608,7 @@
   </select>
   <label class="bc-check-row" for="bc-asteroids">
     <input type="checkbox" id="bc-asteroids" checked>
-    <span><span class="bc-glyph">⚷</span> Asteroids <em style="opacity:0.6; font-weight:normal;">(Chiron, Ceres, Pallas, Juno, Vesta)</em></span>
+    <span><span class="bc-glyph">⚷</span> Asteroids <em style="opacity:0.6; font-weight:normal;">(Lilith, Chiron, Ceres, Pallas, Juno, Vesta)</em></span>
   </label>
   <div>
     <button id="bc-generate" class="primary"><i class="fas fa-calculator"></i> Generate Chart</button>
@@ -1231,9 +1231,9 @@ const PLANET_DEFS = [
 
 // Always-on sensitive points (part of the chart regardless of the asteroid toggle).
 const NODE_DEF   = { name: 'North Node',     emoji: '☊', swissId: 11, kind: 'node' };      // SE_TRUE_NODE
-const LILITH_DEF = { name: 'Lilith',         emoji: '⚸', swissId: 12, kind: 'asteroid' };  // SE_MEAN_APOGEE
-// Optional asteroids, computed only when #bc-asteroids is enabled.
+// Optional asteroids + Lilith, computed only when #bc-asteroids is enabled.
 const AX_DEFS = [
+  { name: 'Lilith', emoji: '⚸', swissId: 12, kind: 'asteroid' }, // SE_MEAN_APOGEE
   { name: 'Chiron', emoji: '⚷', swissId: 15, kind: 'asteroid' },
   { name: 'Ceres',  emoji: '⚳', swissId: 17, kind: 'asteroid' },
   { name: 'Pallas', emoji: '⚴', swissId: 18, kind: 'asteroid' },
@@ -1428,10 +1428,6 @@ async function computeExtras(chart, includeAsteroids){
     const pos = swe.calculatePosition(chart.jd, NODE_DEF.swissId);
     out.push({ name: NODE_DEF.name, emoji: NODE_DEF.emoji, longitude: pos.longitude, kind: NODE_DEF.kind });
   } catch(e){ console.warn('North Node failed:', e); }
-  try {
-    const pos = swe.calculatePosition(chart.jd, LILITH_DEF.swissId);
-    out.push({ name: LILITH_DEF.name, emoji: LILITH_DEF.emoji, longitude: pos.longitude, kind: LILITH_DEF.kind });
-  } catch(e){ console.warn('Lilith failed:', e); }
   if (sun && moon){
     out.push({
       name: 'Part of Fortune', emoji: '⊕', kind: 'pof',
