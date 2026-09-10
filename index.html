@@ -8,12 +8,13 @@
 <link rel="apple-touch-icon" href="/astrobeats/icons/icon-192x192.png">
 <title>AstroBeats Cards</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Symbols+2&text=%E2%98%89%E2%98%BD%E2%98%BF%E2%99%80%E2%99%82%E2%99%83%E2%99%84%E2%99%85%E2%99%86%E2%99%87"/>
 <style>
   body {
     margin: 0;
     padding: 0;
     overflow-x: hidden;
-    font-family: Arial, sans-serif;
+    font-family: 'Noto Sans Symbols 2', Arial, sans-serif;
     background: black;
   }
 
@@ -1545,7 +1546,7 @@ function drawWheel(canvas, chart, z){
     ctx.arc(px(R * 0.72, tp), py(R * 0.72, tp), 5, 0, 2 * Math.PI);
     ctx.fill();
     ctx.fillStyle = '#d9c6ff';
-    ctx.font = `${Math.round(S * 0.05)}px Arial`;
+    ctx.font = `${Math.round(S * 0.05)}px 'Noto Sans Symbols 2', Arial`;
     ctx.fillText(p.emoji, px(R * 0.72, tp), py(R * 0.72, tp));
   }
 }
@@ -1556,7 +1557,15 @@ function renderResult(){
   bcResult.innerHTML = resultCard(currentChart, z);
   bcResult.style.display = 'block';
   const cv = bcResult.querySelector('#bc-wheel');
-  if (cv) drawWheel(cv, currentChart, z);
+  if (cv){
+    drawWheel(cv, currentChart, z);
+    if (document.fonts && document.fonts.load){
+      document.fonts.load('20px "Noto Sans Symbols 2"', '☉').then(() => {
+        const c = bcResult.querySelector('#bc-wheel');
+        if (c) drawWheel(c, currentChart, zodiacSelection());
+      }).catch(() => {});
+    }
+  }
 }
 
 // --- Save / load / delete ---
