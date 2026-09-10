@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="/astrobeats/icons/icon-192x192.png">
 <title>AstroBeats Cards</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"/>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Symbols+2&text=%E2%98%89%E2%98%BD%E2%98%BF%E2%99%80%E2%99%82%E2%99%83%E2%99%84%E2%99%85%E2%99%86%E2%99%87%E2%98%8C%E2%98%8D%E2%96%A1%E2%96%B3%E2%9A%B9%E2%9A%BB"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Symbols+2&text=%E2%98%89%E2%98%BD%E2%98%BF%E2%99%80%E2%99%82%E2%99%83%E2%99%84%E2%99%85%E2%99%86%E2%99%87%E2%98%8C%E2%98%8D%E2%96%A1%E2%96%B3%E2%9A%B9%E2%9A%BB%E2%98%8A%E2%8A%95%E2%9A%B3%E2%9A%B4%E2%9A%B5%E2%9A%B6%E2%9A%B7%E2%9A%B8"/>
 <style>
   body {
     margin: 0;
@@ -419,10 +419,40 @@
     letter-spacing: 0.5px;
   }
 
+  .bc-planets tr.bc-asteroid-row td {
+    opacity: 0.72;
+    font-size: 13px;
+  }
+
   .bc-summary {
     font-size: 13px;
     opacity: 0.85;
     line-height: 1.5;
+  }
+
+  .bc-check-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 2px 0 10px;
+    font-size: 14px;
+    cursor: pointer;
+    background: black;
+    color: white;
+    border: 1px solid #555;
+    padding: 8px 10px;
+    border-radius: 6px;
+  }
+
+  .bc-check-row input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: #6d4cff;
+  }
+
+  .bc-glyph {
+    font-family: 'Noto Sans Symbols 2', Arial, sans-serif;
   }
 
   .bc-aspects {
@@ -576,6 +606,10 @@
     <option value="placidus">Placidus</option>
     <option value="whole">Whole Sign</option>
   </select>
+  <label class="bc-check-row" for="bc-asteroids">
+    <input type="checkbox" id="bc-asteroids" checked>
+    <span><span class="bc-glyph">⚷</span> Asteroids &amp; Lilith <em style="opacity:0.6; font-weight:normal;">(Chiron, Lilith, Ceres, Pallas, Juno, Vesta)</em></span>
+  </label>
   <div>
     <button id="bc-generate" class="primary"><i class="fas fa-calculator"></i> Generate Chart</button>
     <button id="bc-save">Save Chart</button>
@@ -1195,6 +1229,19 @@ const PLANET_DEFS = [
   { name: 'Pluto',   emoji: '♇' }
 ];
 
+// Always-on sensitive points (part of the chart regardless of the asteroid toggle).
+const NODE_DEF   = { name: 'North Node',     emoji: '☊', swissId: 11, kind: 'node' }; // SE_TRUE_NODE
+// Optional asteroids + Lilith, computed only when #bc-asteroids is enabled.
+const AX_DEFS = [
+  { name: 'Chiron', emoji: '⚷', swissId: 15, kind: 'asteroid' },
+  { name: 'Lilith', emoji: '⚸', swissId: 12, kind: 'asteroid' }, // SE_MEAN_APOGEE
+  { name: 'Ceres',  emoji: '⚳', swissId: 17, kind: 'asteroid' },
+  { name: 'Pallas', emoji: '⚴', swissId: 18, kind: 'asteroid' },
+  { name: 'Juno',   emoji: '⚵', swissId: 19, kind: 'asteroid' },
+  { name: 'Vesta',  emoji: '⚶', swissId: 20, kind: 'asteroid' }
+];
+const ASTEROID_EPHEMERIS_URL = 'https://cdn.jsdelivr.net/gh/aloistr/swisseph@master/ephe/seas_18.se1';
+
 const CHARTS_KEY = 'astrobeats_birth_charts';
 const ACTIVE_KEY = 'astrobeats_active_birth_chart';
 const GEO_PREFIX = 'astrobeats_geocode_';
@@ -1335,6 +1382,87 @@ function longitudeToHouse(cusps, lon){
   return 1;
 }
 
+async function ensureSwe(){
+  if (!swe){
+    swe = new SwissEphemeris();
+    await swe.init(WASM_URL);
+  }
+  return swe;
+}
+
+let asteroidEphemerisP = null;
+async function ensureAsteroidEphemeris(){
+  if (!asteroidEphemerisP){
+    asteroidEphemerisP = ensureSwe().then(async () => {
+      await swe.loadEphemerisFiles([{ name: 'seas_18.se1', url: ASTEROID_EPHEMERIS_URL }]);
+    }).catch(err => {
+      asteroidEphemerisP = null;
+      throw err;
+    });
+  }
+  return asteroidEphemerisP;
+}
+
+// Planets + North Node are "main" bodies; Part of Fortune and asteroids only
+// feed into the aspect list (not the wheel lines) to keep things readable.
+function isMainBody(p){
+  return !p.kind || p.kind === 'planet' || p.kind === 'node';
+}
+
+// Part of Fortune: Ascendant + Moon - Sun for a day chart, Ascendant + Sun - Moon
+// for a night chart. "Day" = Sun is above the horizon, i.e. placed in houses 7-12.
+function computePartOfFortune(chart, sun, moon){
+  const asc = chart.angles.ascendant;
+  const day = sun.house >= 7;
+  return wrap360(asc + (day ? moon.longitude - sun.longitude : sun.longitude - moon.longitude));
+}
+
+// Returns the always-on points (North Node, Part of Fortune) plus, when the
+// asteroid checkbox is enabled, the asteroid set. Each extra carries `kind`
+// so the wheel/aspect code can treat asteroids as secondary.
+async function computeExtras(chart, includeAsteroids){
+  const out = [];
+  const sun = chart.planets.find(p => p.name === 'Sun');
+  const moon = chart.planets.find(p => p.name === 'Moon');
+  try {
+    const pos = swe.calculatePosition(chart.jd, NODE_DEF.swissId);
+    out.push({ name: NODE_DEF.name, emoji: NODE_DEF.emoji, longitude: pos.longitude, kind: NODE_DEF.kind });
+  } catch(e){ console.warn('North Node failed:', e); }
+  if (sun && moon){
+    out.push({
+      name: 'Part of Fortune', emoji: '⊕', kind: 'pof',
+      longitude: computePartOfFortune(chart, sun, moon)
+    });
+  }
+  if (includeAsteroids){
+    try {
+      await ensureAsteroidEphemeris();
+    } catch(e){
+      setStatus('Asteroid data unavailable (network/jitter). Showing without asteroids.');
+      console.warn('Asteroid ephemeris failed:', e);
+      return out;
+    }
+    for (const def of AX_DEFS){
+      try {
+        const pos = swe.calculatePosition(chart.jd, def.swissId);
+        out.push({ name: def.name, emoji: def.emoji, longitude: pos.longitude, kind: def.kind });
+      } catch(e){
+        console.warn('Asteroid ' + def.name + ' failed:', e);
+      }
+    }
+  }
+  return out;
+}
+
+// Rebuild the optional/always-on bodies of an existing chart in place, using
+// its already-stored core planets (Sun/Moon/etc.) and house cusps.
+async function refreshExtras(chart){
+  const core = chart.planets.filter(p => !p.extra && p.kind !== 'node' && p.kind !== 'pof' && p.kind !== 'asteroid');
+  const extras = await computeExtras(chart, bcAsteroids.checked);
+  extras.forEach(p => { p.extra = true; p.house = longitudeToHouse(chart.houses, p.longitude); });
+  chart.planets = core.concat(extras);
+}
+
 async function calculateChart(){
   const name = document.querySelector('#bc-name').value.trim() || 'My Chart';
   const date = document.querySelector('#bc-date').value;
@@ -1389,7 +1517,7 @@ async function calculateChart(){
 
   const planets = PLANET_DEFS.map(def => {
     const pos = swe.calculatePosition(jd, Planet[def.name]);
-    return { name: def.name, emoji: def.emoji, longitude: pos.longitude };
+    return { name: def.name, emoji: def.emoji, longitude: pos.longitude, kind: 'planet' };
   });
 
   const houses = swe.calculateHouses(jd, geo.lat, geo.lon, houseSystemEnum());
@@ -1416,6 +1544,14 @@ async function calculateChart(){
     planets
   };
 
+  const extras = await computeExtras(currentChart, bcAsteroids.checked);
+  extras.forEach(p => {
+    p.extra = true;
+    p.house = longitudeToHouse(houses.cusps, p.longitude);
+  });
+  currentChart.planets = currentChart.planets.concat(extras);
+  if (bcAsteroids.checked && extras.length > 2) setStatus('Asteroids included.');
+
   renderResult();
   setStatus('Chart calculated for ' + name + '.');
   return currentChart;
@@ -1424,7 +1560,11 @@ async function calculateChart(){
 function resultCard(chart, z){
   const sun = chart.planets.find(p => p.name === 'Sun');
   const rows = chart.planets.map(p =>
-    `<tr><td>${p.emoji} ${p.name}</td><td>${positionText(p.longitude, z.offset)}</td><td>${p.house}</td></tr>`
+    `<tr${p.kind === 'asteroid' ? ' class="bc-asteroid-row"' : ''}>
+      <td>${p.emoji} ${p.name}</td>
+      <td>${positionText(p.longitude, z.offset)}</td>
+      <td>${p.house}</td>
+    </tr>`
   ).join('');
   const [yd, md, dd] = chart.date.split('-').map(Number);
   const d = new Date(Date.UTC(yd, md - 1, dd));
@@ -1450,7 +1590,7 @@ function resultCard(chart, z){
     </table>
     <div class="bc-aspects">
       <div class="bc-aspects-title">Major Aspects</div>
-      ${computeAspects(chart.planets).map(asp =>
+      ${computeAspects(chart.planets).filter(asp => isMainBody(asp.a) || isMainBody(asp.b)).map(asp =>
         `<div class="bc-aspect-row">${asp.a.emoji} ${asp.a.name} ${asp.symbol} ${asp.b.emoji} ${asp.b.name} <span class="bc-orb">orb ${Math.round(asp.dev * 10) / 10}&deg;</span></div>`
       ).join('') || '<div class="bc-aspect-row" style="opacity:0.6;">No major aspects within orb.</div>'}
     </div>`;
@@ -1607,10 +1747,11 @@ function drawWheel(canvas, chart, z){
     ctx.fillText(String(n), px(R * 0.3, tm), py(R * 0.3, tm));
   }
 
-  // Aspect lines connecting planet placements
+  // Aspect lines connecting main placements (planets + North Node only)
   const aspects = computeAspects(chart.planets);
-  const spotOf = p => R * 0.72;
-  for (const asp of aspects){
+  const wheelAspects = aspects.filter(asp => isMainBody(asp.a) && isMainBody(asp.b));
+  const spotOf = p => R * (p.kind === 'asteroid' ? 0.74 : 0.72);
+  for (const asp of wheelAspects){
     if (asp.key === 'conjunction') continue;
     const ta = thetaFor(wrap360(asp.a.longitude - off));
     const tb = thetaFor(wrap360(asp.b.longitude - off));
@@ -1622,16 +1763,18 @@ function drawWheel(canvas, chart, z){
     ctx.stroke();
   }
 
-  // Planet glyphs positioned by longitude, one dot per placement
+  // Planet glyphs positioned by longitude, one dot per placement.
+  // Asteroids get a smaller, dimmer dot so they stay readable without shouting.
   for (const p of chart.planets){
     const tp = thetaFor(wrap360(p.longitude - off));
-    ctx.fillStyle = '#fff';
+    const asteroid = p.kind === 'asteroid';
+    ctx.fillStyle = asteroid ? 'rgba(255,255,255,0.9)' : '#fff';
     ctx.beginPath();
-    ctx.arc(px(R * 0.72, tp), py(R * 0.72, tp), 5, 0, 2 * Math.PI);
+    ctx.arc(px(R * 0.72, tp), py(R * 0.72, tp), asteroid ? 3.5 : 5, 0, 2 * Math.PI);
     ctx.fill();
-    ctx.fillStyle = '#d9c6ff';
-    ctx.font = `${Math.round(S * 0.05)}px 'Noto Sans Symbols 2', Arial`;
-    ctx.fillText(p.emoji, px(R * 0.72, tp), py(R * 0.72, tp));
+    ctx.fillStyle = asteroid ? 'rgba(217,198,255,0.85)' : '#d9c6ff';
+    ctx.font = `${Math.round(S * (asteroid ? 0.036 : 0.05))}px 'Noto Sans Symbols 2', Arial`;
+    ctx.fillText(p.emoji, px(R * (asteroid ? 0.74 : 0.72), tp), py(R * (asteroid ? 0.74 : 0.72), tp));
   }
 }
 
@@ -1644,7 +1787,8 @@ function renderResult(){
   if (cv){
     drawWheel(cv, currentChart, z);
     if (document.fonts && document.fonts.load){
-      document.fonts.load('20px "Noto Sans Symbols 2"', '☉').then(() => {
+      const glyphs = '☉☽☿♀♂♃♄♅♆♇☊⊕⚷⚸⚳⚴⚵⚶';
+      document.fonts.load('20px "Noto Sans Symbols 2"', glyphs).then(() => {
         const c = bcResult.querySelector('#bc-wheel');
         if (c) drawWheel(c, currentChart, zodiacSelection());
       }).catch(() => {});
@@ -1709,9 +1853,20 @@ bcSavedList.addEventListener('click', (e) => {
       currentChart = c;
       bcName.value = c.name; bcDate.value = c.date; bcTime.value = c.time; bcPlace.value = c.place;
       if (c.houseSystem && HOUSE_SYSTEMS[c.houseSystem]) bcHouseSystem.value = c.houseSystem;
-      if (swe) recomputeHousesForChart(currentChart);
       renderResult();
-      setStatus('Loaded saved chart.');
+      setStatus('Loaded saved chart...');
+      (async () => {
+        try {
+          await ensureSwe();
+          if (bcHouseSystem.value && HOUSE_SYSTEMS[bcHouseSystem.value]) recomputeHousesForChart(currentChart);
+          await refreshExtras(currentChart);
+          renderResult();
+          renderSavedList();
+          setStatus('Loaded saved chart.');
+        } catch (e) {
+          setStatus('Loaded saved chart (extras unavailable).');
+        }
+      })();
     }
   } else if (setActive){
     localStorage.setItem(ACTIVE_KEY, setActive);
@@ -1774,6 +1929,29 @@ bcHouseSystem.addEventListener('change', () => {
     setStatus((HOUSE_SYSTEMS[bcHouseSystem.value] || HOUSE_SYSTEMS.placidus).label + ' houses selected.');
   }
 });
+
+// Asteroid/Lilith toggle: persists, and re-adds/removes the optional bodies.
+const ASTEROIDS_PREF_KEY = 'astrobeats_bc_asteroids';
+const bcAsteroids = document.querySelector('#bc-asteroids');
+if (localStorage.getItem(ASTEROIDS_PREF_KEY) === 'off' && bcAsteroids){
+  bcAsteroids.checked = false;
+}
+if (bcAsteroids){
+  bcAsteroids.addEventListener('change', async () => {
+    localStorage.setItem(ASTEROIDS_PREF_KEY, bcAsteroids.checked ? 'on' : 'off');
+    if (!currentChart) return;
+    setStatus(bcAsteroids.checked ? 'Loading asteroids...' : 'Removing asteroids...');
+    try {
+      await ensureSwe();
+      await refreshExtras(currentChart);
+      renderResult();
+      renderSavedList();
+      setStatus(bcAsteroids.checked ? 'Asteroids & Lilith shown.' : 'Asteroids hidden.');
+    } catch (e) {
+      setStatus('Could not update asteroids: ' + (e && e.message));
+    }
+  });
+}
 
 document.querySelector('#bc-save').addEventListener('click', saveCurrentChart);
 
