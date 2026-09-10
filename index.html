@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="/astrobeats/icons/icon-192x192.png">
 <title>AstroBeats Cards</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"/>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Symbols+2&text=%E2%98%89%E2%98%BD%E2%98%BF%E2%99%80%E2%99%82%E2%99%83%E2%99%84%E2%99%85%E2%99%86%E2%99%87"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Symbols+2&text=%E2%98%89%E2%98%BD%E2%98%BF%E2%99%80%E2%99%82%E2%99%83%E2%99%84%E2%99%85%E2%99%86%E2%99%87%E2%98%8C%E2%98%8D%E2%96%A1%E2%96%B3%E2%9A%B9%E2%9A%BB"/>
 <style>
   body {
     margin: 0;
@@ -423,6 +423,30 @@
     font-size: 13px;
     opacity: 0.85;
     line-height: 1.5;
+  }
+
+  .bc-aspects {
+    margin-top: 12px;
+  }
+
+  .bc-aspects-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    opacity: 0.7;
+    margin-bottom: 4px;
+  }
+
+  .bc-aspect-row {
+    font-size: 13px;
+    padding: 3px 2px;
+    border-bottom: 1px dotted rgba(255,255,255,0.12);
+  }
+
+  .bc-orb {
+    opacity: 0.6;
+    font-size: 12px;
+    margin-left: 6px;
   }
 
   .bc-saved-item {
@@ -1423,7 +1447,13 @@ function resultCard(chart, z){
     <table class="bc-planets">
       <tr><th>Body</th><th>Position</th><th>House</th></tr>
       ${rows}
-    </table>`;
+    </table>
+    <div class="bc-aspects">
+      <div class="bc-aspects-title">Major Aspects</div>
+      ${computeAspects(chart.planets).map(asp =>
+        `<div class="bc-aspect-row">${asp.a.emoji} ${asp.a.name} ${asp.symbol} ${asp.b.emoji} ${asp.b.name} <span class="bc-orb">orb ${Math.round(asp.dev * 10) / 10}&deg;</span></div>`
+      ).join('') || '<div class="bc-aspect-row" style="opacity:0.6;">No major aspects within orb.</div>'}
+    </div>`;
 }
 
 function formatDegMin(degNum){
@@ -1441,6 +1471,45 @@ function formatTime12(t){
 }
 
 const SIGN_GLYPHS = ['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓'];
+
+// Major aspects: generous "loose" orb so more pairings show up.
+const ASPECT_ORB = 9;
+const ASPECTS = [
+  { angle: 0,   key: 'conjunction', symbol: '☌', name: 'Conjunction' },
+  { angle: 60,  key: 'sextile',     symbol: '⚹', name: 'Sextile' },
+  { angle: 90,  key: 'square',      symbol: '□', name: 'Square' },
+  { angle: 120, key: 'trine',       symbol: '△', name: 'Trine' },
+  { angle: 150, key: 'quincunx',    symbol: '⚻', name: 'Quincunx' },
+  { angle: 180, key: 'opposition',  symbol: '☍', name: 'Opposition' }
+];
+const ASPECT_ORDER = ['conjunction', 'sextile', 'square', 'trine', 'quincunx', 'opposition'];
+const ASPECT_COLORS = {
+  conjunction: 'rgba(255,255,255,0.40)',
+  sextile:     'rgba(124,232,247,0.30)',
+  square:      'rgba(255,125,125,0.38)',
+  trine:       'rgba(125,169,255,0.38)',
+  quincunx:    'rgba(183,166,255,0.38)',
+  opposition:  'rgba(255,176,125,0.42)'
+};
+
+function computeAspects(planets){
+  const out = [];
+  for (let i = 0; i < planets.length; i++){
+    for (let j = i + 1; j < planets.length; j++){
+      const a = planets[i], b = planets[j];
+      let d = Math.abs(a.longitude - b.longitude) % 360;
+      if (d > 180) d = 360 - d;
+      let best = null;
+      for (const asp of ASPECTS){
+        const dev = Math.abs(d - asp.angle);
+        if (dev <= ASPECT_ORB && (!best || dev < best.dev)) best = { key: asp.key, symbol: asp.symbol, name: asp.name, dev };
+      }
+      if (best) out.push({ a, b, ...best });
+    }
+  }
+  out.sort((x, y) => (ASPECT_ORDER.indexOf(x.key) - ASPECT_ORDER.indexOf(y.key)) || (x.dev - y.dev));
+  return out;
+}
 
 const wrap360 = d => ((d % 360) + 360) % 360;
 
@@ -1536,6 +1605,21 @@ function drawWheel(canvas, chart, z){
     const mid = wrap360(cusp(n) + span / 2);
     const tm = thetaFor(mid);
     ctx.fillText(String(n), px(R * 0.3, tm), py(R * 0.3, tm));
+  }
+
+  // Aspect lines connecting planet placements
+  const aspects = computeAspects(chart.planets);
+  const spotOf = p => R * 0.72;
+  for (const asp of aspects){
+    if (asp.key === 'conjunction') continue;
+    const ta = thetaFor(wrap360(asp.a.longitude - off));
+    const tb = thetaFor(wrap360(asp.b.longitude - off));
+    ctx.strokeStyle = ASPECT_COLORS[asp.key];
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(px(spotOf(asp.a), ta), py(spotOf(asp.a), ta));
+    ctx.lineTo(px(spotOf(asp.b), tb), py(spotOf(asp.b), tb));
+    ctx.stroke();
   }
 
   // Planet glyphs positioned by longitude, one dot per placement
