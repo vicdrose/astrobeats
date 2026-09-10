@@ -1775,15 +1775,11 @@ function drawWheel(canvas, chart, z){
     ctx.stroke();
   }
 
-  // Planet glyphs positioned by longitude, one dot per placement.
-  // Asteroids get a smaller, dimmer dot so they stay readable without shouting.
+  // Planet glyphs positioned by longitude (no background dot).
+  // Asteroids render smaller and dimmer so they stay readable without shouting.
   for (const p of chart.planets){
     const tp = thetaFor(wrap360(p.longitude - off));
     const asteroid = p.kind === 'asteroid';
-    ctx.fillStyle = asteroid ? 'rgba(255,255,255,0.9)' : '#fff';
-    ctx.beginPath();
-    ctx.arc(px(R * 0.72, tp), py(R * 0.72, tp), asteroid ? 3.5 : 5, 0, 2 * Math.PI);
-    ctx.fill();
     ctx.fillStyle = asteroid ? 'rgba(217,198,255,0.85)' : '#d9c6ff';
     ctx.font = `${Math.round(S * (asteroid ? 0.036 : 0.05))}px 'Noto Sans Symbols 2', Arial`;
     ctx.fillText(p.emoji, px(R * (asteroid ? 0.74 : 0.72), tp), py(R * (asteroid ? 0.74 : 0.72), tp));
