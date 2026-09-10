@@ -684,7 +684,7 @@ const overlay = document.querySelector('#overlay');
 
 function closeAll(){
   sidebar.classList.remove('open');
-  [journalModal, askModal, settingsModal, historyModal, communityModal, birthChartModal].forEach(m => m.style.display='none');
+  [journalModal, askModal, settingsModal, historyModal, communityModal, document.querySelector('#birth-chart-modal')].forEach(m => m.style.display='none');
   overlay.style.display='none';
 }
 
