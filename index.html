@@ -608,7 +608,7 @@
   </select>
   <label class="bc-check-row" for="bc-asteroids">
     <input type="checkbox" id="bc-asteroids" checked>
-    <span><span class="bc-glyph">⚷</span> Asteroids &amp; Lilith <em style="opacity:0.6; font-weight:normal;">(Chiron, Lilith, Ceres, Pallas, Juno, Vesta)</em></span>
+    <span><span class="bc-glyph">⚷</span> Asteroids <em style="opacity:0.6; font-weight:normal;">(Chiron, Ceres, Pallas, Juno, Vesta)</em></span>
   </label>
   <div>
     <button id="bc-generate" class="primary"><i class="fas fa-calculator"></i> Generate Chart</button>
@@ -1230,11 +1230,11 @@ const PLANET_DEFS = [
 ];
 
 // Always-on sensitive points (part of the chart regardless of the asteroid toggle).
-const NODE_DEF   = { name: 'North Node',     emoji: '☊', swissId: 11, kind: 'node' }; // SE_TRUE_NODE
-// Optional asteroids + Lilith, computed only when #bc-asteroids is enabled.
+const NODE_DEF   = { name: 'North Node',     emoji: '☊', swissId: 11, kind: 'node' };      // SE_TRUE_NODE
+const LILITH_DEF = { name: 'Lilith',         emoji: '⚸', swissId: 12, kind: 'asteroid' };  // SE_MEAN_APOGEE
+// Optional asteroids, computed only when #bc-asteroids is enabled.
 const AX_DEFS = [
   { name: 'Chiron', emoji: '⚷', swissId: 15, kind: 'asteroid' },
-  { name: 'Lilith', emoji: '⚸', swissId: 12, kind: 'asteroid' }, // SE_MEAN_APOGEE
   { name: 'Ceres',  emoji: '⚳', swissId: 17, kind: 'asteroid' },
   { name: 'Pallas', emoji: '⚴', swissId: 18, kind: 'asteroid' },
   { name: 'Juno',   emoji: '⚵', swissId: 19, kind: 'asteroid' },
@@ -1428,6 +1428,10 @@ async function computeExtras(chart, includeAsteroids){
     const pos = swe.calculatePosition(chart.jd, NODE_DEF.swissId);
     out.push({ name: NODE_DEF.name, emoji: NODE_DEF.emoji, longitude: pos.longitude, kind: NODE_DEF.kind });
   } catch(e){ console.warn('North Node failed:', e); }
+  try {
+    const pos = swe.calculatePosition(chart.jd, LILITH_DEF.swissId);
+    out.push({ name: LILITH_DEF.name, emoji: LILITH_DEF.emoji, longitude: pos.longitude, kind: LILITH_DEF.kind });
+  } catch(e){ console.warn('Lilith failed:', e); }
   if (sun && moon){
     out.push({
       name: 'Part of Fortune', emoji: '⊕', kind: 'pof',
@@ -1572,6 +1576,21 @@ function resultCard(chart, z){
   const sunLine = sun ? ` Sun in ${zodiacInfo(sun.longitude, z.offset).sign}` : '';
   const ayNote = z.offset ? ` &middot; ayanamsa ${formatDegMin(z.offset)}` : '';
   const houseLabel = (HOUSE_SYSTEMS[chart.houseSystem] || HOUSE_SYSTEMS.placidus).label;
+  const allAspects = computeAspects(chart.planets);
+  const isAsteroidal = asp => asp.a.kind === 'asteroid' || asp.b.kind === 'asteroid';
+  const aspectRow = asp => `<div class="bc-aspect-row">${asp.a.emoji} ${asp.a.name} ${asp.symbol} ${asp.b.emoji} ${asp.b.name} <span class="bc-orb">orb ${Math.round(asp.dev * 10) / 10}&deg;</span></div>`;
+  const majorAspects = allAspects.filter(asp => !isAsteroidal(asp));
+  const asteroidAspects = allAspects.filter(asp => isAsteroidal(asp));
+  const majorSection = `
+    <div class="bc-aspects">
+      <div class="bc-aspects-title">Major Aspects</div>
+      ${majorAspects.map(aspectRow).join('') || '<div class="bc-aspect-row" style="opacity:0.6;">No major aspects within orb.</div>'}
+    </div>`;
+  const asteroidSection = asteroidAspects.length ? `
+    <div class="bc-aspects">
+      <div class="bc-aspects-title">Asteroid Aspects</div>
+      ${asteroidAspects.map(aspectRow).join('')}
+    </div>` : '';
   return `
     <canvas id="bc-wheel" width="720" height="720"></canvas>
     <div class="bc-summary">
@@ -1588,12 +1607,9 @@ function resultCard(chart, z){
       <tr><th>Body</th><th>Position</th><th>House</th></tr>
       ${rows}
     </table>
-    <div class="bc-aspects">
-      <div class="bc-aspects-title">Major Aspects</div>
-      ${computeAspects(chart.planets).filter(asp => isMainBody(asp.a) || isMainBody(asp.b)).map(asp =>
-        `<div class="bc-aspect-row">${asp.a.emoji} ${asp.a.name} ${asp.symbol} ${asp.b.emoji} ${asp.b.name} <span class="bc-orb">orb ${Math.round(asp.dev * 10) / 10}&deg;</span></div>`
-      ).join('') || '<div class="bc-aspect-row" style="opacity:0.6;">No major aspects within orb.</div>'}
-    </div>`;
+    ${majorSection}
+    ${asteroidSection}
+  </div>`;
 }
 
 function formatDegMin(degNum){
@@ -1946,7 +1962,7 @@ if (bcAsteroids){
       await refreshExtras(currentChart);
       renderResult();
       renderSavedList();
-      setStatus(bcAsteroids.checked ? 'Asteroids & Lilith shown.' : 'Asteroids hidden.');
+      setStatus(bcAsteroids.checked ? 'Asteroids shown.' : 'Asteroids hidden.');
     } catch (e) {
       setStatus('Could not update asteroids: ' + (e && e.message));
     }
